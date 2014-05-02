@@ -20,7 +20,15 @@
         android:text="New Button"
         android:id="@+id/testBtn"
         android:layout_below="@+id/textView"
-        android:layout_centerHorizontal="true"
-        android:layout_marginTop="158dp" />
+        android:layout_alignParentRight="true"
+        android:layout_alignParentEnd="true" />
+
+    <ListView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/targetListView"
+        android:layout_below="@+id/testBtn"
+        android:layout_alignRight="@+id/testBtn"
+        android:layout_alignEnd="@+id/testBtn" />
 
 </RelativeLayout>

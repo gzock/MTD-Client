@@ -138,7 +138,7 @@ public class ServiceManager {
                 //Intent i = new Intent();
                 //i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 //i.setClassName("com.example.mtd_client.app", "com.example.mtd_client.app.TargetListView");
-                i.putExtra("TargetPJ", strList.get(which));
+                i.putExtra("TargetList", toSplitArray(strList));
                 //unBindWsService();
                 context.startActivity(i);
             }
@@ -156,6 +156,14 @@ public class ServiceManager {
             strList.add(strs[i]);
         }
         return strList;
+    }
+
+    private String toSplitArray(ArrayList<String> array) {
+        String mergeStr = null;
+        for (String str : array) {
+            mergeStr += str + ",";
+        }
+        return mergeStr;
     }
 
 }

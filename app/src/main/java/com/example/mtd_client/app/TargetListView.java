@@ -17,6 +17,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ListView;
 
 import org.apache.http.message.BasicNameValuePair;
 
@@ -31,7 +32,9 @@ public class TargetListView extends ActionBarActivity {
     private static final String TAG = "TargetListView";
     Handler mHandler;
     ServiceManager sm = new ServiceManager();
-    String targetPJ = null;
+    String targetList = null;
+    TargetListData data = null;
+    ArrayList<TargetListData> dataList = new ArrayList<TargetListData>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,19 +46,32 @@ public class TargetListView extends ActionBarActivity {
         //値が設定されていない場合にはextrasにはnullが設定されます。
         if(extras != null) {
             //値が設定されている場合
-            targetPJ = extras.getString("TargetPJ");
+            targetList = extras.getString("TargetList");
         }
+
+        String[] temp = targetList.split(",");
+        for(int i = 0; i < temp.length; i += 3) {
+            TargetListData _data = new TargetListData();
+
+            data.setTargetName  ( temp[i] );
+            data.setBeforeAgter ( temp[i+1] );
+            data.setPicture     (temp[i + 2]);
+            dataList.add        ( data );
+        }
+
+        TargetListAdapter targetListAdapter = new TargetListAdapter(this, 0, dataList);
+        ListView listView = (ListView) findViewById(R.id.targetListView);
+        listView.setAdapter( targetListAdapter );
+
 
         sm.bindWsService(TargetListView.this);
 
-
-        sm.send("getTargetList," + targetPJ);
 
         Button testBtn = (Button)findViewById(R.id.testBtn);
         testBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                sm.send("getTargetList," + targetPJ);
+                //sm.send("getTargetList," + targetPJ);
             }
         });
     }
