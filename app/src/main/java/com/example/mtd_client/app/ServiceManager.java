@@ -12,22 +12,29 @@ import android.content.ServiceConnection;
 import android.os.Handler;
 import android.os.IBinder;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ListView;
+import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.ArrayList;
+import java.lang.Object;
 
 /**
  * Created by Gzock on 2014/04/28.
  */
 public class ServiceManager {
 
-    private ServiceConnection serviceConnection = null;
-    private ServiceReceiver receiver = null;
-    private static final String TAG = "ServiceManager";
-    private Context con = null;
-    private WebSocketService client = null;
-    private Handler mHandler;
-    private Intent intent = null;
+    private              ServiceConnection serviceConnection = null;
+    private              ServiceReceiver   receiver          = null;
+    private static final String            TAG               = "ServiceManager";
+    private              Context           con               = null;
+    private              WebSocketService  client            = null;
+    private              Intent            intent            = null;
+    private              String            selectedPj        = null;
+    private              ViewGroup         _vg               = null;
 
     public ServiceManager() {
         // ServiceConnectionの用意
@@ -77,6 +84,11 @@ public class ServiceManager {
         }
     }
 
+    //TODO ここは考えなおそう。contextからviewを取得する方法はない？
+    public void setView (ViewGroup vg) {
+        _vg = vg;
+    }
+
     public void send(String str) {
         client.send(str);
         Log.d(TAG, "send(string) -> " + str);
@@ -102,11 +114,9 @@ public class ServiceManager {
     // Receiverクラス
     public class ServiceReceiver extends BroadcastReceiver {
 
-        private String selectedPj = null;
         @Override
         public void onReceive(final Context context, Intent intent) {
 
-            mHandler = new Handler();
             String rcvMessage = intent.getStringExtra("rcvMessage");
             final ArrayList<String> strList = toArrayStr(rcvMessage);
 
@@ -138,9 +148,36 @@ public class ServiceManager {
                 //Intent i = new Intent();
                 //i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 //i.setClassName("com.example.mtd_client.app", "com.example.mtd_client.app.TargetListView");
+
+                //ターゲットリスト詰め込む
                 i.putExtra("TargetList", toSplitArray(strList));
+                //選んだPJ名詰め込む
+                i.putExtra("PJName", selectedPj );
+
                 //unBindWsService();
                 context.startActivity(i);
+
+                //バインド解除
+                context.unbindService(serviceConnection);
+                context.unregisterReceiver(receiver);
+
+            } else if(strList.get(0).equals("tgtListUpdate")) {
+
+                final ArrayList<TargetListData> dataList = new ArrayList<TargetListData>();
+                String[] temp = rcvMessage.split(",");
+                for(int i = 1; i < temp.length; i += 4) {
+                    TargetListData _data = new TargetListData();
+                    _data.setId          ( temp[i] );
+                    _data.setTargetName  ( temp[i + 1] );
+                    _data.setBeforeAgter ( temp[i + 2] );
+                    _data.setPicture     ( temp[i + 3] );
+                    dataList.add         ( _data );
+                }
+
+                TargetListAdapter targetListAdapter = new TargetListAdapter(con, 0, dataList);
+                ListView listView = (ListView) _vg.findViewById(R.id.targetListView);
+                listView.setAdapter( targetListAdapter );
+
             }
             //((MySample)context).textview01.setText("count: " + counter);
         }
@@ -159,7 +196,7 @@ public class ServiceManager {
     }
 
     private String toSplitArray(ArrayList<String> array) {
-        String mergeStr = null;
+        String mergeStr = "";
         for (String str : array) {
             mergeStr += str + ",";
         }

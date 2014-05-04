@@ -13,9 +13,12 @@ import android.os.IBinder;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.ListView;
 
@@ -31,10 +34,16 @@ public class TargetListView extends ActionBarActivity {
 
     private static final String TAG = "TargetListView";
     Handler mHandler;
-    ServiceManager sm = new ServiceManager();
-    String targetList = null;
-    TargetListData data = null;
-    ArrayList<TargetListData> dataList = new ArrayList<TargetListData>();
+    private ServiceManager sm = new ServiceManager();
+    private String targetList = null;
+    private ArrayList<TargetListData> dataList = new ArrayList<TargetListData>();
+    private ArrayList<TargetListData> previousDataList = new ArrayList<TargetListData>();
+
+    private String previousTarget = null;
+    private String pjName = null;
+
+    private TargetListAdapter targetListAdapter = null;
+    private ListView listView = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,24 +56,40 @@ public class TargetListView extends ActionBarActivity {
         if(extras != null) {
             //値が設定されている場合
             targetList = extras.getString("TargetList");
+            previousTarget = pjName = extras.getString("PJName");
         }
 
         String[] temp = targetList.split(",");
-        for(int i = 0; i < temp.length; i += 3) {
+        for(int i = 0; i < temp.length; i += 4) {
             TargetListData _data = new TargetListData();
 
-            data.setTargetName  ( temp[i] );
-            data.setBeforeAgter ( temp[i+1] );
-            data.setPicture     (temp[i + 2]);
-            dataList.add        ( data );
+            _data.setId          ( temp[i] );
+            _data.setTargetName  ( temp[i + 1] );
+            _data.setBeforeAgter ( temp[i + 2] );
+            _data.setPicture     ( temp[i + 3] );
+            dataList.add         ( _data );
         }
 
-        TargetListAdapter targetListAdapter = new TargetListAdapter(this, 0, dataList);
-        ListView listView = (ListView) findViewById(R.id.targetListView);
+        targetListAdapter = new TargetListAdapter(this, 0, dataList);
+        listView = (ListView) findViewById(R.id.targetListView);
         listView.setAdapter( targetListAdapter );
 
+        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView parent, View view, int position, long id) {
+                ListView listView = (ListView) parent;
+                TargetListData item = (TargetListData)listView.getItemAtPosition(position);
 
-        sm.bindWsService(TargetListView.this);
+                previousDataList = dataList;
+                sm.send( "getTargetListUpdate," + item.getId());
+                Log.d(TAG, "selected -> " + item.getTargetName());
+            }
+        });
+
+
+//        sm.bindWsService(TargetListView.this);
+        sm.bindWsService( getApplicationContext() );
+        sm.setView( (ViewGroup)this.getWindow().getDecorView() );
 
 
         Button testBtn = (Button)findViewById(R.id.testBtn);
@@ -74,6 +99,18 @@ public class TargetListView extends ActionBarActivity {
                 //sm.send("getTargetList," + targetPJ);
             }
         });
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if(keyCode== KeyEvent.KEYCODE_BACK){
+            if( previousDataList != null ) {
+                targetListAdapter = new TargetListAdapter(this, 0, previousDataList);
+                listView.setAdapter( targetListAdapter );
+            }
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -95,6 +132,7 @@ public class TargetListView extends ActionBarActivity {
         }
         return super.onOptionsItemSelected(item);
     }
+
 
     private ArrayList<String> toArrayStr(String message) {
         String[] strs = message.split(",");
