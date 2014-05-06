@@ -21,13 +21,8 @@ import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.ListView;
-
-import org.apache.http.message.BasicNameValuePair;
-
-import java.net.URI;
+import android.widget.Toast;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
 
 public class TargetListView extends ActionBarActivity {
@@ -78,11 +73,49 @@ public class TargetListView extends ActionBarActivity {
             @Override
             public void onItemClick(AdapterView parent, View view, int position, long id) {
                 ListView listView = (ListView) parent;
-                TargetListData item = (TargetListData)listView.getItemAtPosition(position);
+                final TargetListData item = (TargetListData)listView.getItemAtPosition(position);
 
-                previousDataList = dataList;
-                sm.send( "getTargetListUpdate," + item.getId());
-                Log.d(TAG, "selected -> " + item.getTargetName());
+                //施工前/後があるかないかで、ターゲットの種類が建物か機器か判定する
+                if( item.getBeforeAfter().equals("") ) {
+                    previousDataList = dataList;
+                    sm.send( "getTargetListUpdate," + item.getId());
+                    Log.d(TAG, "selected -> " + item.getTargetName());
+
+                } else {
+                    final CharSequence[] chars = {"撮影", "確認", "追加", "編集", "削除"};
+                    new AlertDialog.Builder(TargetListView.this)
+                            .setTitle("操作を選択して下さい")
+                            .setSingleChoiceItems(
+                                    chars,
+                                    0, // Initial
+                                    new DialogInterface.OnClickListener() {
+                                        @Override
+                                        public void onClick(DialogInterface dialog, int which) {
+                                            String switchStr = chars[ which ].toString();
+                                            if ( switchStr.equals("撮影") ) {
+                                                Toast.makeText(TargetListView.this, switchStr,Toast.LENGTH_LONG).show();
+                                                Intent i = new Intent(TargetListView.this, CameraShot.class);
+                                                i.putExtra("TargetID", item.getId());
+                                                i.putExtra("TargetName", item.getTargetName());
+                                                startActivity(i);
+
+                                            } else if ( switchStr.equals("確認") ) {
+                                                Toast.makeText(TargetListView.this, switchStr,Toast.LENGTH_LONG).show();
+                                            } else if ( switchStr.equals("追加") ) {
+                                                Toast.makeText(TargetListView.this, switchStr,Toast.LENGTH_LONG).show();
+                                            } else if ( switchStr.equals("編集") ) {
+                                                Toast.makeText(TargetListView.this, switchStr,Toast.LENGTH_LONG).show();
+                                            } else if ( switchStr.equals("削除") ) {
+
+                                            }
+                                        }
+                                    }
+                            )
+                            .setPositiveButton("OK", null)
+                            .show();
+                }
+
+
             }
         });
 

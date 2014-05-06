@@ -44,7 +44,23 @@ public class TargetListAdapter extends ArrayAdapter {
         ImageView image = (ImageView) view.findViewById(R.id.checkImage);
 
         if (items != null && items.size() >= position) {
+
+            // ターゲット名設定
             targetName.setText(items.get(position).getTargetName());
+
+            // ターゲットが建物か機器かで、per1,2の内容変更
+            // TODO 進捗率表示
+            if( items.get(position).getBeforeAfter().equals("") ) {
+
+            } else {
+                per1.setText( items.get(position).getBeforeAfter() );
+                per2.setText("");
+            }
+
+            // pictureが1なら撮影済みなので、チェック画像表示
+            if ( items.get(position).getPicture() == 1 ) {
+                image.setImageResource(R.drawable.ok_m);
+            }
             //message.setText(items.get(position).getMessage());
             //image.setImageResource(R.drawable.ic_launcher);
         }

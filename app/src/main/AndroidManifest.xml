@@ -26,8 +26,14 @@
             android:enabled="true"
             android:exported="true" >
         </service>
+
+        <activity
+            android:name="com.example.mtd_client.app.CameraShot"
+            android:label="@string/title_activity_camera_shot" >
+        </activity>
     </application>
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.CAMERA" />
 
 </manifest>
