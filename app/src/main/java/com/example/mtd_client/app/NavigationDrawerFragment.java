@@ -11,6 +11,7 @@ import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -94,6 +95,14 @@ public class NavigationDrawerFragment extends Fragment {
         mDrawerListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+
+                // Add
+                // TODO 要調整
+                ListView listView = (ListView) parent;
+                String item = (String)listView.getItemAtPosition(position);
+                Log.d("NavigationDrawer", "Drawer Selected -> " + item);
+
+                // 閉じたりとかの処理 (デフォ)
                 selectItem(position);
             }
         });
@@ -102,9 +111,11 @@ public class NavigationDrawerFragment extends Fragment {
                 android.R.layout.simple_list_item_1,
                 android.R.id.text1,
                 new String[]{
-                        getString(R.string.title_section1),
-                        getString(R.string.title_section2),
-                        getString(R.string.title_section3),
+                        getString(R.string.title_target_list),
+                        getString(R.string.title_const_id_manage),
+                        getString(R.string.title_ky),
+                        getString(R.string.title_task),
+                        getString(R.string.title_chat),
                 }));
         mDrawerListView.setItemChecked(mCurrentSelectedPosition, true);
         return mDrawerListView;

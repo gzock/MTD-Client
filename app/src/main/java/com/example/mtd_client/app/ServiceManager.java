@@ -154,7 +154,6 @@ public class ServiceManager {
                 //選んだPJ名詰め込む
                 i.putExtra("PJName", selectedPj );
 
-                //unBindWsService();
                 context.startActivity(i);
 
                 //バインド解除
@@ -165,12 +164,14 @@ public class ServiceManager {
 
                 final ArrayList<TargetListData> dataList = new ArrayList<TargetListData>();
                 String[] temp = rcvMessage.split(",");
-                for(int i = 1; i < temp.length; i += 4) {
+                for(int i = 1; i < temp.length; i += 6) {
                     TargetListData _data = new TargetListData();
                     _data.setId          ( temp[i] );
-                    _data.setTargetName  ( temp[i + 1] );
-                    _data.setBeforeAgter ( temp[i + 2] );
-                    _data.setPicture     ( temp[i + 3] );
+                    _data.setProjectName ( temp[i + 1] );
+                    _data.setParent      ( temp[i + 2] );
+                    _data.setTargetName  ( temp[i + 3] );
+                    _data.setBeforeAgter ( temp[i + 4] );
+                    _data.setPicture     ( temp[i + 5] );
                     dataList.add         ( _data );
                 }
 

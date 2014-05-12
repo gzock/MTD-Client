@@ -7,9 +7,9 @@
         <option name="externalProjectPath" value="$PROJECT_DIR$" />
         <option name="modules">
           <set>
-            <option value="C:\Users\Gzock\AndroidStudioProjects\MTD-Client" />
-            <option value="C:\Users\Gzock\AndroidStudioProjects\MTD-Client\WebSocket" />
-            <option value="C:\Users\Gzock\AndroidStudioProjects\MTD-Client\app" />
+            <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/WebSocket" />
+            <option value="$PROJECT_DIR$/app" />
           </set>
         </option>
       </GradleProjectSettings>

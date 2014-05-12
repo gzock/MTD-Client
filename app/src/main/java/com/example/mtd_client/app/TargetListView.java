@@ -14,13 +14,16 @@ import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.KeyEvent;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ListView;
+import android.widget.Spinner;
 import android.widget.Toast;
 import java.util.ArrayList;
 
@@ -55,13 +58,15 @@ public class TargetListView extends ActionBarActivity {
         }
 
         String[] temp = targetList.split(",");
-        for(int i = 0; i < temp.length; i += 4) {
+        for(int i = 0; i < temp.length; i += 6) {
             TargetListData _data = new TargetListData();
 
             _data.setId          ( temp[i] );
-            _data.setTargetName  ( temp[i + 1] );
-            _data.setBeforeAgter ( temp[i + 2] );
-            _data.setPicture     ( temp[i + 3] );
+            _data.setProjectName ( temp[i + 1] );
+            _data.setParent      ( temp[i + 2] );
+            _data.setTargetName  ( temp[i + 3] );
+            _data.setBeforeAgter ( temp[i + 4] );
+            _data.setPicture     ( temp[i + 5] );
             dataList.add         ( _data );
         }
 
@@ -80,6 +85,7 @@ public class TargetListView extends ActionBarActivity {
                     previousDataList = dataList;
                     sm.send( "getTargetListUpdate," + item.getId());
                     Log.d(TAG, "selected -> " + item.getTargetName());
+                    previousTarget = item.getId();
 
                 } else {
                     final CharSequence[] chars = {"撮影", "確認", "追加", "編集", "削除"};
@@ -96,17 +102,70 @@ public class TargetListView extends ActionBarActivity {
                                                 Toast.makeText(TargetListView.this, switchStr,Toast.LENGTH_LONG).show();
                                                 Intent i = new Intent(TargetListView.this, CameraShot.class);
                                                 i.putExtra("TargetID", item.getId());
+                                                i.putExtra("ProjectName", item.getProjectName());
                                                 i.putExtra("TargetName", item.getTargetName());
                                                 startActivity(i);
 
                                             } else if ( switchStr.equals("確認") ) {
                                                 Toast.makeText(TargetListView.this, switchStr,Toast.LENGTH_LONG).show();
+                                                //TODO 画像確認
                                             } else if ( switchStr.equals("追加") ) {
                                                 Toast.makeText(TargetListView.this, switchStr,Toast.LENGTH_LONG).show();
+
+                                                LayoutInflater inflater = LayoutInflater.from(TargetListView.this);
+                                                View view = inflater.inflate(R.layout.add_target_dialog, null);
+                                                final EditText addTargetName = (EditText)view.findViewById(R.id.add_target_name);
+                                                final Spinner addTargetGenre = (Spinner)view.findViewById(R.id.add_target_genre_spinner);
+                                                final Spinner addTargetBeforeAfter = (Spinner)view.findViewById(R.id.add_target_before_after_spinner);
+
+                                                new AlertDialog.Builder(TargetListView.this)
+                                                        .setTitle("項目の追加")
+                                                        .setView(view)
+                                                        .setPositiveButton(
+                                                                "決定",
+                                                                new DialogInterface.OnClickListener() {
+                                                                    @Override
+                                                                    public void onClick(DialogInterface dialog, int which) {
+                                                                        Log.d(TAG, "ProjectName -> "           + pjName);
+                                                                        Log.d(TAG, "Add Target Name -> "       + addTargetName.getText().toString());
+                                                                        Log.d(TAG, "Add Target Genre -> "      + addTargetGenre.getSelectedItem().toString());
+                                                                        Log.d(TAG, "Add Target BeforAfter -> " + addTargetBeforeAfter.getSelectedItem().toString());
+                                                                        sm.send("addTarget," + pjName + "," + previousTarget + "," + addTargetName.getText().toString() + "," +
+                                                                                addTargetGenre.getSelectedItem().toString() + "," + addTargetBeforeAfter.getSelectedItem().toString());
+                                                                    }
+                                                                }
+                                                        )
+                                                        .setNegativeButton("キャンセル", null)
+                                                        .show();
+
                                             } else if ( switchStr.equals("編集") ) {
                                                 Toast.makeText(TargetListView.this, switchStr,Toast.LENGTH_LONG).show();
-                                            } else if ( switchStr.equals("削除") ) {
 
+                                                LayoutInflater inflater = LayoutInflater.from(TargetListView.this);
+                                                View view = inflater.inflate(R.layout.edit_target_dialog, null);
+                                                final EditText editTargetName = (EditText)view.findViewById(R.id.edit_target_name);
+                                                editTargetName.setText( item.getTargetName() );
+
+                                                new AlertDialog.Builder(TargetListView.this)
+                                                        .setTitle("項目の編集")
+                                                        .setView(view)
+                                                        .setPositiveButton(
+                                                                "決定",
+                                                                new DialogInterface.OnClickListener() {
+                                                                    @Override
+                                                                    public void onClick(DialogInterface dialog, int which) {
+                                                                        Log.d(TAG, "ProjectName -> "      + pjName);
+                                                                        Log.d(TAG, "Edit Target ID -> "      + item.getId());
+                                                                        Log.d(TAG, "Edit Target Name -> " + editTargetName.getText().toString());
+                                                                        sm.send("editTarget," + item.getId() + "," + editTargetName.getText().toString());
+                                                                    }
+                                                                }
+                                                        )
+                                                        .setNegativeButton("キャンセル", null)
+                                                        .show();
+
+                                            } else if ( switchStr.equals("削除") ) {
+                                                // TODO 項目削除
                                             }
                                         }
                                     }
@@ -124,14 +183,6 @@ public class TargetListView extends ActionBarActivity {
         sm.bindWsService( getApplicationContext() );
         sm.setView( (ViewGroup)this.getWindow().getDecorView() );
 
-
-        Button testBtn = (Button)findViewById(R.id.testBtn);
-        testBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                //sm.send("getTargetList," + targetPJ);
-            }
-        });
     }
 
     @Override

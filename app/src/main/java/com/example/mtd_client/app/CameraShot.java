@@ -31,6 +31,7 @@ public class CameraShot extends ActionBarActivity {
     private ServiceManager sm = new ServiceManager();
     private String targetId = null;
     private String targetName = null;
+    private String projectName = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,6 +47,7 @@ public class CameraShot extends ActionBarActivity {
             //値が設定されている場合
             targetId = extras.getString("TargetID");
             targetName = extras.getString("TargetName");
+            projectName = extras.getString("projectName");
          }
 
         // カメラインスタンスの取得

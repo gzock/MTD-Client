@@ -12,5 +12,19 @@
     <string name="title_activity_target_list_view">TargetListView</string>
     <string name="hello_world">Hello world!</string>
     <string name="title_activity_camera_shot">CameraShot</string>
+    <string name="title_target_list">対象機器一覧</string>
+    <string name="title_const_id_manage">工事ID管理</string>
+    <string name="title_ky">危険予知</string>
+    <string name="title_task">タスク</string>
+    <string name="title_chat">チャット</string>
+    <string-array name="add_target_genre_items">
+        <item>建物</item>
+        <item>機器</item>
+    </string-array>
+    <string-array name="add_target_before_after_items">
+        <item>-</item>
+        <item>施工前</item>
+        <item>施工後</item>
+    </string-array>
 
 </resources>
