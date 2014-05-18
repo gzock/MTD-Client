@@ -35,6 +35,7 @@ public class ServiceManager {
     private              Intent            intent            = null;
     private              String            selectedPj        = null;
     private              ViewGroup         _vg               = null;
+    private              Boolean           serviceState      = null;
 
     public ServiceManager() {
         // ServiceConnectionの用意
@@ -68,12 +69,21 @@ public class ServiceManager {
         con.registerReceiver(receiver, filter);
         Boolean bool = con.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
         Log.d(TAG, "bindService Result ->" + bool.toString());
+        serviceState = true;
+    }
+    public void unBindWsService() {
+        con.unbindService(this.getServiceConnection()); // バインド解除
+        con.unregisterReceiver(this.getReceiver()); // レシーバー解除
+        serviceState = false;
+    }
+    public Boolean isWsServiceState() {
+        return serviceState;
     }
 
     public ServiceReceiver getReceiver() { return receiver; }
     public ServiceConnection getServiceConnection() { return serviceConnection; }
 
-    public boolean isConnected() {
+    public boolean isWsConnected() {
         return client.isConnected();
     }
     public boolean isState() {
@@ -103,10 +113,7 @@ public class ServiceManager {
         // サービス終了
         client.disConnect();
     }
-    public void unBindWsService() {
-        con.unbindService(this.getServiceConnection()); // バインド解除
-        con.unregisterReceiver(this.getReceiver()); // レシーバー解除
-    }
+
     public void stopWsService() {
         con.stopService(intent);
     }
@@ -123,25 +130,39 @@ public class ServiceManager {
             if( strList.get(0).equals("pjList")) {
                 Log.d(TAG, "*** Project List ***");
                 strList.remove(0);
+                final ArrayList<String> pjNameList   = new ArrayList<String>();
+                final ArrayList<String> pjRootTarget = new ArrayList<String>();
 
-                final CharSequence[] chars = strList.toArray(new CharSequence[strList.size()]);
+                if(strList.size() %  2 == 0) {
+                    for (int i = 0; i < strList.size(); i++) {
+                        if( (i % 2) == 0 || i == 0) {
+                            pjNameList.add(strList.get(i));
+                        } else {
+                            pjRootTarget.add(strList.get(i));
+                        }
+                    }
 
-                new AlertDialog.Builder(context)
-                        .setTitle("案件名を選択して下さい")
-                        .setSingleChoiceItems(
-                                chars,
-                                0, // Initial
-                                new DialogInterface.OnClickListener() {
-                                    @Override
-                                    public void onClick(DialogInterface dialog, int which) {
-                                        Log.d(TAG, strList.get(which) + " Selected");
-                                        client.send("getTargetList," + strList.get(which));
-                                        selectedPj = strList.get(which);
+                    final CharSequence[] chars = pjNameList.toArray(new CharSequence[pjNameList.size()]);
+                    new AlertDialog.Builder(context)
+                            .setTitle("案件名を選択して下さい")
+                            .setSingleChoiceItems(
+                                    chars,
+                                    0, // Initial
+                                    new DialogInterface.OnClickListener() {
+                                        @Override
+                                        public void onClick(DialogInterface dialog, int which) {
+                                            Log.d(TAG, strList.get(which) + " Selected");
+                                            //別にpjName使わなくね？
+                                            //client.send("getTargetList," + pjNameList.get(which) + "," + pjRootTarget.get(which));
+                                            client.send("getTargetList," + pjRootTarget.get(which));
+                                            selectedPj = strList.get(which);
+                                        }
                                     }
-                                }
-                        )
-                        .setPositiveButton("OK", null)
-                        .show();
+                            )
+                            .setPositiveButton("OK", null)
+                            .show();
+                }
+
             } else if (strList.get(0).equals("tgtList")) {
                 strList.remove(0);
                 Intent i = new Intent(context, TargetListView.class);
@@ -164,14 +185,17 @@ public class ServiceManager {
 
                 final ArrayList<TargetListData> dataList = new ArrayList<TargetListData>();
                 String[] temp = rcvMessage.split(",");
-                for(int i = 1; i < temp.length; i += 6) {
+                for(int i = 1; i < temp.length; i += 8) {
                     TargetListData _data = new TargetListData();
-                    _data.setId          ( temp[i] );
-                    _data.setProjectName ( temp[i + 1] );
-                    _data.setParent      ( temp[i + 2] );
-                    _data.setTargetName  ( temp[i + 3] );
-                    _data.setBeforeAgter ( temp[i + 4] );
-                    _data.setPicture     ( temp[i + 5] );
+                    _data.setId               ( temp[i] );
+                    _data.setParent           ( temp[i + 1] );
+                    _data.setTargetName       ( temp[i + 2] );
+                    _data.setPhotoBeforeAfter ( temp[i + 3] );
+                    _data.setPhotoCheck       ( temp[i + 4] );
+                    _data.setBfrPhotoPercent  ( temp[i + 5] );
+                    _data.setAftPhotoPercent  ( temp[i + 6] );
+                    _data.setType             ( temp[i + 7] );
+
                     dataList.add         ( _data );
                 }
 

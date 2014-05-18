@@ -110,8 +110,12 @@ public class MainActivity extends ActionBarActivity
     @Override
     protected void onDestroy() {
         // サービス終了
-        sm.disConnect();
-        sm.unBindWsService();
+        if(sm.isWsConnected()) {
+            sm.disConnect();
+        }
+        if(!sm.isWsServiceState()) {
+            sm.unBindWsService();
+        }
         sm.stopWsService();
 
         super.onDestroy();
@@ -175,6 +179,14 @@ public class MainActivity extends ActionBarActivity
             restoreActionBar();
             return true;
         }
+        // メニューの要素を追加して取得
+        MenuItem actionItem = menu.add("Login");
+
+        // SHOW_AS_ACTION_IF_ROOM:余裕があれば表示
+        actionItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
+
+        // アイコンを設定
+        //actionItem.setIcon(android.R.drawable.ic_menu);
         return super.onCreateOptionsMenu(menu);
     }
 
@@ -231,5 +243,13 @@ public class MainActivity extends ActionBarActivity
                     getArguments().getInt(ARG_SECTION_NUMBER));
         }
     }
+
+    @Override
+    public void onUserLeaveHint(){
+        //ホームボタンが押された時や、他のアプリが起動した時に呼ばれる
+        //戻るボタンが押された場合には呼ばれない
+        //Toast.makeText(getApplicationContext(), TAG + " Good bye!" , Toast.LENGTH_SHORT).show();
+    }
+
 
 }

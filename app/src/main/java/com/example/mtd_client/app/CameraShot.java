@@ -1,15 +1,20 @@
 package com.example.mtd_client.app;
 
 import android.hardware.Camera;
+import android.media.Image;
 import android.os.Environment;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
+import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.ImageButton;
+import android.widget.Toast;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -28,10 +33,15 @@ public class CameraShot extends ActionBarActivity {
     private boolean mIsTake = false;
     private  String pictureTargetName = null;
     private static final String TAG = "CameraShot";
+    public static final int CAMERA_SHOT = 0;
+    public static final int NON_CAMERA_SHOT = 1;
     private ServiceManager sm = new ServiceManager();
     private String targetId = null;
     private String targetName = null;
-    private String projectName = null;
+
+    private boolean shotFlag = false;
+
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,7 +57,6 @@ public class CameraShot extends ActionBarActivity {
             //値が設定されている場合
             targetId = extras.getString("TargetID");
             targetName = extras.getString("TargetName");
-            projectName = extras.getString("projectName");
          }
 
         // カメラインスタンスの取得
@@ -65,6 +74,55 @@ public class CameraShot extends ActionBarActivity {
         mCamPreview = new CameraPreview(this, mCam);
         preview.addView(mCamPreview);
 
+        final ImageButton shotButton = (ImageButton)findViewById(R.id.shotButton);
+        shotButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(!shotFlag) {
+                    mCam.stopPreview();
+                    findViewById(R.id.submitButton).setClickable(true);
+                    findViewById(R.id.reShotButton).setClickable(true);
+                    Toast.makeText(CameraShot.this, "この写真で良ければ採用ボタンをタップして下さい", Toast.LENGTH_LONG).show();
+                    shotFlag = true;
+                } else {
+                    Toast.makeText(CameraShot.this, "既に撮影済みです", Toast.LENGTH_LONG).show();
+                }
+            }
+        });
+
+        ImageButton reShotButton = (ImageButton)findViewById(R.id.reShotButton);
+        reShotButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v){
+                if(shotFlag) {
+                    mCam.startPreview();
+                    findViewById(R.id.submitButton).setClickable(false);
+                    findViewById(R.id.reShotButton).setClickable(false);
+                    shotFlag = false;
+                } else {
+                    Toast.makeText(CameraShot.this, "既に撮影可能状態です", Toast.LENGTH_LONG).show();
+                }
+            }
+        });
+
+        ImageButton submitButton = (ImageButton)findViewById(R.id.submitButton);
+        submitButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (!mIsTake) {
+                    if(shotFlag) {
+                        // 撮影中の2度押し禁止用フラグ
+                        mIsTake = true;
+                        // 画像取得
+                        mCam.takePicture(null, null, mPicJpgListener);
+                        shotFlag = false;
+                    } else {
+                        Toast.makeText(CameraShot.this, "未撮影状態です", Toast.LENGTH_LONG).show();
+                    }
+                }
+            }
+        });
+        /*
         // mCamPreview に タッチイベントを設定
         mCamPreview.setOnTouchListener(new View.OnTouchListener() {
             public boolean onTouch(View v, MotionEvent event) {
@@ -80,6 +138,7 @@ public class CameraShot extends ActionBarActivity {
                 return true;
             }
         });
+        */
 
     }
 
@@ -133,8 +192,24 @@ public class CameraShot extends ActionBarActivity {
             }
             */
             mIsTake = false;
+            sm.unBindWsService();
+            CameraShot.this.setResult(CAMERA_SHOT);
+            CameraShot.this.finish();
         };
     };
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if(keyCode== KeyEvent.KEYCODE_BACK){
+
+            // 戻るボタン押されたということは、画像の採用が行われていない
+            sm.unBindWsService();
+            CameraShot.this.setResult(NON_CAMERA_SHOT);
+            CameraShot.this.finish();
+
+        }
+        return false;
+    }
 
 
     @Override
@@ -155,6 +230,26 @@ public class CameraShot extends ActionBarActivity {
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    protected void onDestroy() {
+        /*
+        if(sm.isWsConnected()) {
+            sm.disConnect();
+        }
+        if(!sm.isWsServiceState()) {
+            sm.unBindWsService();
+        }
+        sm.stopWsService();
+        */
+        super.onDestroy();
+    }
+    @Override
+    public void onUserLeaveHint(){
+        //ホームボタンが押された時や、他のアプリが起動した時に呼ばれる
+        //戻るボタンが押された場合には呼ばれない
+        Toast.makeText(getApplicationContext(), TAG + " Good bye!" , Toast.LENGTH_SHORT).show();
     }
 
 }

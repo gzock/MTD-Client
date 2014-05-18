@@ -50,15 +50,21 @@ public class TargetListAdapter extends ArrayAdapter {
 
             // ターゲットが建物か機器かで、per1,2の内容変更
             // TODO 進捗率表示
-            if( items.get(position).getBeforeAfter().equals("") ) {
-
+            if( items.get(position).getType() == 0 ) {
+                per1.setText( "施工前進捗率: " + items.get(position).getBfrPhotoPercent().toString() + "%" );
+                per2.setText( "施工後進捗率: " + items.get(position).getAftPhotoPercent().toString() + "%" );
             } else {
-                per1.setText( items.get(position).getBeforeAfter() );
-                per2.setText("");
+                if( items.get(position).getPhotoBeforeAfter() == 0) {
+                    per1.setText("施工前");
+                    per2.setText("");
+                } else {
+                    per1.setText("施工後");
+                    per2.setText("");
+                }
             }
 
             // pictureが1なら撮影済みなので、チェック画像表示
-            if ( items.get(position).getPicture() == 1 ) {
+            if ( items.get(position).getPhotoCheck() == 1 ) {
                 image.setImageResource(R.drawable.ok_m);
             }
             //message.setText(items.get(position).getMessage());
