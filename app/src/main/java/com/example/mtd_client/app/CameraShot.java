@@ -1,5 +1,8 @@
 package com.example.mtd_client.app;
 
+import android.content.pm.ActivityInfo;
+import android.content.res.Configuration;
+import android.content.res.Resources;
 import android.hardware.Camera;
 import android.media.Image;
 import android.os.Environment;
@@ -11,6 +14,8 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
@@ -46,9 +51,12 @@ public class CameraShot extends ActionBarActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_camera_shot);
 
-        sm.bindWsService(CameraShot.this);
+        // ステータスバー非表示
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        // タイトルバー非表示
+        requestWindowFeature(Window.FEATURE_NO_TITLE);
+        setContentView(R.layout.activity_camera_shot);
 
         Bundle extras;
         extras = getIntent().getExtras();
@@ -59,20 +67,38 @@ public class CameraShot extends ActionBarActivity {
             targetName = extras.getString("TargetName");
          }
 
-        // カメラインスタンスの取得
-        try {
-            mCam = Camera.open();
-            Log.d(TAG, "Camera Open");
-        } catch (Exception e) {
-            // エラー
-            Log.d(TAG, "Camera Open Error");
-            this.finish();
+
+
+        Resources resources = getResources();
+        Configuration config = resources.getConfiguration();
+
+        switch(config.orientation) {
+            case Configuration.ORIENTATION_PORTRAIT:
+                // 横向きに固定
+                this.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+                break;
+
+            case Configuration.ORIENTATION_LANDSCAPE:
+
+                sm.bindWsService(CameraShot.this);
+                // カメラインスタンスの取得
+                try {
+                    mCam = Camera.open();
+                    Log.d(TAG, "Camera Open");
+                } catch (Exception e) {
+                    // エラー
+                    Log.d(TAG, "Camera Open Error");
+                    this.finish();
+                }
+                // FrameLayout に CameraPreview クラスを設定
+                FrameLayout preview = (FrameLayout)findViewById(R.id.cameraPreview);
+                mCamPreview = new CameraPreview(this, mCam);
+                preview.addView(mCamPreview);
+                break;
         }
 
-        // FrameLayout に CameraPreview クラスを設定
-        FrameLayout preview = (FrameLayout)findViewById(R.id.cameraPreview);
-        mCamPreview = new CameraPreview(this, mCam);
-        preview.addView(mCamPreview);
+
+
 
         final ImageButton shotButton = (ImageButton)findViewById(R.id.shotButton);
         shotButton.setOnClickListener(new View.OnClickListener() {
@@ -80,8 +106,6 @@ public class CameraShot extends ActionBarActivity {
             public void onClick(View v) {
                 if(!shotFlag) {
                     mCam.stopPreview();
-                    findViewById(R.id.submitButton).setClickable(true);
-                    findViewById(R.id.reShotButton).setClickable(true);
                     Toast.makeText(CameraShot.this, "この写真で良ければ採用ボタンをタップして下さい", Toast.LENGTH_LONG).show();
                     shotFlag = true;
                 } else {
@@ -96,8 +120,6 @@ public class CameraShot extends ActionBarActivity {
             public void onClick(View v){
                 if(shotFlag) {
                     mCam.startPreview();
-                    findViewById(R.id.submitButton).setClickable(false);
-                    findViewById(R.id.reShotButton).setClickable(false);
                     shotFlag = false;
                 } else {
                     Toast.makeText(CameraShot.this, "既に撮影可能状態です", Toast.LENGTH_LONG).show();
@@ -111,6 +133,7 @@ public class CameraShot extends ActionBarActivity {
             public void onClick(View v) {
                 if (!mIsTake) {
                     if(shotFlag) {
+                        Toast.makeText(CameraShot.this, "この写真を採用します", Toast.LENGTH_LONG).show();
                         // 撮影中の2度押し禁止用フラグ
                         mIsTake = true;
                         // 画像取得
@@ -234,13 +257,15 @@ public class CameraShot extends ActionBarActivity {
 
     @Override
     protected void onDestroy() {
+
+        if(sm.isWsServiceState()) {
+            sm.unBindWsService();
+        }
         /*
         if(sm.isWsConnected()) {
             sm.disConnect();
         }
-        if(!sm.isWsServiceState()) {
-            sm.unBindWsService();
-        }
+
         sm.stopWsService();
         */
         super.onDestroy();

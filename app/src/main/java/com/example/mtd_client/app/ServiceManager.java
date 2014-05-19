@@ -35,7 +35,7 @@ public class ServiceManager {
     private              Intent            intent            = null;
     private              String            selectedPj        = null;
     private              ViewGroup         _vg               = null;
-    private              Boolean           serviceState      = null;
+    private              Boolean           serviceState      = false;
 
     public ServiceManager() {
         // ServiceConnectionの用意

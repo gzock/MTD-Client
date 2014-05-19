@@ -1,6 +1,7 @@
 package com.example.mtd_client.app;
 
 import android.app.AlertDialog;
+import android.app.Dialog;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -8,6 +9,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.pm.ActivityInfo;
 import android.os.Handler;
 import android.os.IBinder;
 import android.support.v4.widget.DrawerLayout;
@@ -50,6 +52,9 @@ public class TargetListView extends ActionBarActivity {
 
     private TargetListAdapter targetListAdapter = null;
     private ListView listView = null;
+
+    TargetListData item = null;
+    private Dialog dialog = null;
 
     /**
      * Fragment managing the behaviors, interactions and presentation of the navigation drawer.
@@ -96,7 +101,7 @@ public class TargetListView extends ActionBarActivity {
             @Override
             public void onItemClick(AdapterView parent, View view, int position, long id) {
                 ListView listView = (ListView) parent;
-                final TargetListData item = (TargetListData)listView.getItemAtPosition(position);
+                item = (TargetListData)listView.getItemAtPosition(position);
 
                 if( item.getType().equals( 0 ) ) {
                     sm.send( "getTargetListUpdate," + item.getId());
@@ -105,154 +110,183 @@ public class TargetListView extends ActionBarActivity {
                     previousTargetParentId = item.getParent();
 
                 } else {
-                    final CharSequence[] chars = {"撮影", "確認", "編集", "削除"};
-                    new AlertDialog.Builder(TargetListView.this)
-                            .setTitle("操作を選択して下さい")
-                            .setSingleChoiceItems(
-                                    chars,
-                                    0, // Initial
-                                    new DialogInterface.OnClickListener() {
-                                        @Override
-                                        public void onClick(DialogInterface dialog, int which) {
-                                            String switchStr = chars[ which ].toString();
-                                            if ( switchStr.equals("撮影") ) {
-                                                Toast.makeText(TargetListView.this, switchStr,Toast.LENGTH_LONG).show();
-
-                                                Intent i = new Intent(TargetListView.this, CameraShot.class);
-                                                i.putExtra("TargetID", item.getId());
-                                                i.putExtra("TargetName", item.getTargetName());
-                                                startActivityForResult(i, CAMERA_SHOT_ACTIVITY);
-
-                                            } else if ( switchStr.equals("確認") ) {
-                                                Toast.makeText(TargetListView.this, switchStr,Toast.LENGTH_LONG).show();
-                                                //TODO 画像確認
-
-                                            } else if ( switchStr.equals("編集") ) {
-                                                Toast.makeText(TargetListView.this, switchStr,Toast.LENGTH_LONG).show();
-
-                                                LayoutInflater inflater = LayoutInflater.from(TargetListView.this);
-                                                View view = inflater.inflate(R.layout.edit_target_dialog, null);
-                                                final EditText editTargetName = (EditText)view.findViewById(R.id.edit_target_name);
-                                                editTargetName.setText( item.getTargetName() );
-
-                                                new AlertDialog.Builder(TargetListView.this)
-                                                        .setTitle("項目の編集")
-                                                        .setView(view)
-                                                        .setPositiveButton(
-                                                                "決定",
-                                                                new DialogInterface.OnClickListener() {
-                                                                    @Override
-                                                                    public void onClick(DialogInterface dialog, int which) {
-                                                                        Log.d(TAG, "ProjectName -> "      + pjName);
-                                                                        Log.d(TAG, "Edit Target ID -> "      + item.getId());
-                                                                        Log.d(TAG, "Edit Target Name -> " + editTargetName.getText().toString());
-                                                                        sm.send("editTarget," + item.getId() + "," + editTargetName.getText().toString());
-                                                                    }
-                                                                }
-                                                        )
-                                                        .setNegativeButton("キャンセル", null)
-                                                        .show();
-
-                                            } else if ( switchStr.equals("削除") ) {
-                                                Toast.makeText(TargetListView.this, switchStr,Toast.LENGTH_LONG).show();
-                                                new AlertDialog.Builder(TargetListView.this)
-                                                        .setTitle("項目の削除")
-                                                        .setMessage(item.getTargetName() + "を削除しますか? \n対象配下に機器や建物が存在する場合は、それらも削除されてしまいますので、ご注意下さい")
-                                                        .setPositiveButton(
-                                                                "決定",
-                                                                new DialogInterface.OnClickListener() {
-                                                                    @Override
-                                                                    public void onClick(DialogInterface dialog, int which) {
-                                                                        sm.send("deleteTarget," + item.getId());
-                                                                    }
-                                                                }
-                                                        )
-                                                        .setNegativeButton("キャンセル", null)
-                                                        .show();
-                                            }
-                                        }
-                                    }
-                            )
-                            .setPositiveButton("OK", null)
-                            .show();
+                    showDialog(0);
                 }
-
-
             }
         });
         listView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
             @Override
             public boolean onItemLongClick(AdapterView parent, View view, int position, long id) {
                 final TargetListData item = (TargetListData) listView.getItemAtPosition(position);
-                if (item.getType().equals(0)) {
-                    final CharSequence[] chars = {"編集", "削除"};
-                    new AlertDialog.Builder(TargetListView.this)
-                            .setTitle("操作を選択して下さい")
-                            .setSingleChoiceItems(
-                                    chars,
-                                    0, // Initial
-                                    new DialogInterface.OnClickListener() {
-                                        @Override
-                                        public void onClick(DialogInterface dialog, int which) {
-                                            String switchStr = chars[which].toString();
-                                            if (switchStr.equals("編集")) {
-                                                Toast.makeText(TargetListView.this, switchStr, Toast.LENGTH_LONG).show();
-
-                                                LayoutInflater inflater = LayoutInflater.from(TargetListView.this);
-                                                View view = inflater.inflate(R.layout.edit_target_dialog, null);
-                                                final EditText editTargetName = (EditText) view.findViewById(R.id.edit_target_name);
-                                                editTargetName.setText(item.getTargetName());
-
-                                                new AlertDialog.Builder(TargetListView.this)
-                                                        .setTitle("項目の編集")
-                                                        .setView(view)
-                                                        .setPositiveButton(
-                                                                "決定",
-                                                                new DialogInterface.OnClickListener() {
-                                                                    @Override
-                                                                    public void onClick(DialogInterface dialog, int which) {
-                                                                        Log.d(TAG, "ProjectName -> " + pjName);
-                                                                        Log.d(TAG, "Edit Target ID -> " + item.getId());
-                                                                        Log.d(TAG, "Edit Target Name -> " + editTargetName.getText().toString());
-                                                                        sm.send("editTarget," + item.getId() + "," + editTargetName.getText().toString());
-                                                                    }
-                                                                }
-                                                        )
-                                                        .setNegativeButton("キャンセル", null)
-                                                        .show();
-
-                                            } else if (switchStr.equals("削除")) {
-                                                Toast.makeText(TargetListView.this, switchStr, Toast.LENGTH_LONG).show();
-                                                new AlertDialog.Builder(TargetListView.this)
-                                                        .setTitle("項目の削除")
-                                                        .setMessage(item.getTargetName() + "を削除しますか? \n対象配下に機器や建物が存在する場合は、それらも削除されてしまいますので、ご注意下さい")
-                                                        .setPositiveButton(
-                                                                "決定",
-                                                                new DialogInterface.OnClickListener() {
-                                                                    @Override
-                                                                    public void onClick(DialogInterface dialog, int which) {
-                                                                        sm.send("deleteTarget," + item.getId());
-                                                                    }
-                                                                }
-                                                        )
-                                                        .setNegativeButton("キャンセル", null)
-                                                        .show();
-                                            }
-                                        }
-                                    }
-                            )
-                            .setPositiveButton("OK", null)
-                            .show();
+                if ( item.getType() == 0 ) {
+                    showDialog(1);
                 }
-                return false;
+                // trueを返さないと、LongClickのあとに普通のclickが動いてしまう
+                return true;
             }
         });
 
-
-//        sm.bindWsService(TargetListView.this);
-                sm.bindWsService(getApplicationContext());
+        if(!sm.isWsServiceState()) {
+            sm.bindWsService(getApplicationContext());
+        }
         sm.setView( (ViewGroup)this.getWindow().getDecorView() );
 
+    }
+
+    @Override
+    protected Dialog onCreateDialog(int id) {
+        dialog = super.onCreateDialog(id);
+
+        //idは何個かダイアログがある場合に使う
+        if ( id == 0 )
+        {
+            final CharSequence[] chars = {"撮影", "確認", "編集", "削除"};
+
+            //showDialogを呼ぶときに１度だけ呼ばれる
+            AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(TargetListView.this);
+            dialogBuilder.setTitle("操作を選択して下さい");
+            dialogBuilder.setSingleChoiceItems(
+                    chars,
+                    0, // Initial
+                    new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            String switchStr = chars[which].toString();
+
+                            if (switchStr.equals("撮影")) {
+                                Toast.makeText(TargetListView.this, switchStr, Toast.LENGTH_LONG).show();
+
+                                sm.unBindWsService();
+                                Intent i = new Intent(TargetListView.this, CameraShot.class);
+                                i.putExtra("TargetID", item.getId());
+                                i.putExtra("TargetName", item.getTargetName());
+                                dialog.dismiss();
+                                startActivityForResult(i, CAMERA_SHOT_ACTIVITY);
+
+                            } else if (switchStr.equals("確認")) {
+                                Toast.makeText(TargetListView.this, switchStr, Toast.LENGTH_LONG).show();
+                                //TODO 画像確認
+
+                            } else if (switchStr.equals("編集")) {
+                                Toast.makeText(TargetListView.this, switchStr, Toast.LENGTH_LONG).show();
+                                showDialog(2);
+
+                            } else if (switchStr.equals("削除")) {
+                                Toast.makeText(TargetListView.this, switchStr, Toast.LENGTH_LONG).show();
+                                showDialog(3);
+                            }
+                        }
+                    }
+            );
+            dialogBuilder.setNegativeButton("キャンセル", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    dialog.dismiss();
+                }
+            });
+            dialog = dialogBuilder.create();
+
+        } else if( id == 1 ) {
+            final CharSequence[] chars = {"編集", "削除"};
+
+            //showDialogを呼ぶときに１度だけ呼ばれる
+            AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(TargetListView.this);
+            dialogBuilder.setTitle("操作を選択して下さい");
+            dialogBuilder.setSingleChoiceItems(
+                    chars,
+                    0, // Initial
+                    new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            String switchStr = chars[which].toString();
+
+                            if (switchStr.equals("編集")) {
+                                Toast.makeText(TargetListView.this, switchStr, Toast.LENGTH_LONG).show();
+                                showDialog(2);
+
+                            } else if (switchStr.equals("削除")) {
+                                Toast.makeText(TargetListView.this, switchStr, Toast.LENGTH_LONG).show();
+                                showDialog(3);
+                            }
+                        }
+                    }
+            );
+            dialogBuilder.setNegativeButton("キャンセル", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    dialog.dismiss();
+                }
+            });
+            dialog = dialogBuilder.create();
+
+        } else if( id == 2 ) {
+            //showDialogを呼ぶときに１度だけ呼ばれる
+            AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(TargetListView.this);
+
+            LayoutInflater inflater = LayoutInflater.from(TargetListView.this);
+            View view = inflater.inflate(R.layout.edit_target_dialog, null);
+            final EditText editTargetName = (EditText) view.findViewById(R.id.edit_target_name);
+            editTargetName.setText(item.getTargetName());
+
+            dialogBuilder.setTitle("項目の編集");
+            dialogBuilder.setView(view);
+            dialogBuilder.setPositiveButton(
+                            "決定",
+                            new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    Log.d(TAG, "ProjectName -> " + pjName);
+                                    Log.d(TAG, "Edit Target ID -> " + item.getId());
+                                    Log.d(TAG, "Edit Target Name -> " + editTargetName.getText().toString());
+                                    sm.send("editTarget," + item.getId() + "," + editTargetName.getText().toString());
+                                    dialog.dismiss();
+                                }
+                            }
+                    );
+            dialogBuilder.setNegativeButton("キャンセル", new DialogInterface.OnClickListener() {
+                @Override
+                 public void onClick(DialogInterface dialog, int which) {
+                    dialog.dismiss();
+                }
+            });
+            dialog = dialogBuilder.create();
+
+        } else if( id == 3 ) {
+            AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(TargetListView.this);
+            dialogBuilder.setTitle("項目の削除");
+            dialogBuilder.setMessage(item.getTargetName() + "を削除しますか? \n対象配下に機器や建物が存在する場合は、それらも削除されてしまいますので、ご注意下さい");
+            dialogBuilder.setPositiveButton(
+                            "決定",
+                            new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    sm.send("deleteTarget," + item.getId());
+                                    dialog.dismiss();
+                                }
+                            }
+                    );
+            dialogBuilder.setNegativeButton("キャンセル", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    dialog.dismiss();
+                }
+            });
+            dialog = dialogBuilder.create();
+        }
+
+        return dialog;
+    }
+
+    @Override
+    protected void onPrepareDialog(int id, Dialog dialog) {
+        super.onPrepareDialog(id, dialog);
+
+        //showDialogを呼ぶとき毎回呼ばれる
+        //ダイアログの状態を変化させることができる
+        if ( id == 0 )
+        {
+            //今回なんもしない
+        }
     }
 
     @Override
@@ -273,22 +307,30 @@ public class TargetListView extends ActionBarActivity {
 
         switch( requestCode ) {
             case CAMERA_SHOT_ACTIVITY :
+                this.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+                //if(!sm.isWsServiceState()) {
+                    sm.bindWsService(TargetListView.this);
+                //}
+
                 switch ( resultCode ) {
                     case CameraShot.CAMERA_SHOT :
-                        sm.send("getTargetListUpdate," + currentTargetParentId);
+                        /*
+                        if(sm.isWsConnected()) {
+                            sm.send("getTargetListUpdate," + currentTargetParentId);
+                        }
+                        */
                         break;
                     case CameraShot.NON_CAMERA_SHOT :
                         break;
                 }
                 break;
-
         }
         if(requestCode == CAMERA_SHOT_ACTIVITY) {
             if(resultCode == 1 ){
 
             }
-
         }
+
         super.onActivityResult(requestCode, resultCode, data);
     }
 
@@ -372,13 +414,13 @@ public class TargetListView extends ActionBarActivity {
     @Override
     protected void onDestroy() {
         deleteFile(TargetListView.this.getCacheDir());
-        if(sm.isWsConnected()) {
-            sm.disConnect();
-        }
-        if(!sm.isWsServiceState()) {
+        //if(sm.isWsConnected()) {
+        //    sm.disConnect();
+        //}
+        if(sm.isWsServiceState()) {
             sm.unBindWsService();
         }
-        sm.stopWsService();
+        //sm.stopWsService();
 
         super.onDestroy();
 
