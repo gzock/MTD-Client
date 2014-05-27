@@ -47,6 +47,7 @@ public class TargetListView extends ActionBarActivity {
 
     private String previousTarget = null;
     private String previousTargetParentId = null;
+    private String previousParentId = null;
     private String currentTargetParentId = null;
     private String pjName = null;
 
@@ -78,18 +79,21 @@ public class TargetListView extends ActionBarActivity {
         }
 
         String[] temp = targetList.split(",");
-        for(int i = 0; i < temp.length; i += 8) {
+        for(int i = 0; i < temp.length; i += 11) {
             TargetListData _data = new TargetListData();
 
             _data.setId               ( temp[i] );
             _data.setParent           ( temp[i + 1] );
-            if( i == 0 ) { currentTargetParentId = temp[i + 1]; }
+            if( i == 0 ) { sm.setCurrentParentId( temp[i + 1] ); }
             _data.setTargetName       ( temp[i + 2] );
             _data.setPhotoBeforeAfter ( temp[i + 3] );
             _data.setPhotoCheck       ( temp[i + 4] );
-            _data.setBfrPhotoPercent  ( temp[i + 5] );
-            _data.setAftPhotoPercent  ( temp[i + 6] );
-            _data.setType             ( temp[i + 7] );
+            _data.setBfrPhotoShotCnt ( temp[i + 5] );
+            _data.setBfrPhotoTotalCnt( temp[i + 6] );
+            _data.setAftPhotoShotCnt  ( temp[i + 7] );
+            _data.setAftPhotoTotalCnt ( temp[i + 8] );
+            _data.setType             ( temp[i + 9] );
+            _data.setLock             ( temp[i + 10]);
             dataList.add              ( _data );
         }
 
@@ -117,7 +121,7 @@ public class TargetListView extends ActionBarActivity {
         listView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
             @Override
             public boolean onItemLongClick(AdapterView parent, View view, int position, long id) {
-                final TargetListData item = (TargetListData) listView.getItemAtPosition(position);
+                item = (TargetListData) listView.getItemAtPosition(position);
                 if ( item.getType() == 0 ) {
                     showDialog(1);
                 }
@@ -238,7 +242,9 @@ public class TargetListView extends ActionBarActivity {
                                     Log.d(TAG, "ProjectName -> " + pjName);
                                     Log.d(TAG, "Edit Target ID -> " + item.getId());
                                     Log.d(TAG, "Edit Target Name -> " + editTargetName.getText().toString());
-                                    sm.send("editTarget," + item.getId() + "," + editTargetName.getText().toString());
+                                    Log.d(TAG, "Edit TargetParen ID -> " + item.getParent());
+
+                                    sm.send("editTarget," + item.getId()  + "," + editTargetName.getText().toString() + "," + item.getParent() );
                                     dialog.dismiss();
                                 }
                             }
@@ -260,7 +266,9 @@ public class TargetListView extends ActionBarActivity {
                             new DialogInterface.OnClickListener() {
                                 @Override
                                 public void onClick(DialogInterface dialog, int which) {
-                                    sm.send("deleteTarget," + item.getId());
+                                    Log.d(TAG, "Delete Target ID -> " + item.getId());
+                                    Log.d(TAG, "Delete TargetParent -> " + item.getParent());
+                                    sm.send("deleteTarget," + item.getId() + "," + item.getParent());
                                     dialog.dismiss();
                                 }
                             }
@@ -292,8 +300,9 @@ public class TargetListView extends ActionBarActivity {
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if(keyCode== KeyEvent.KEYCODE_BACK){
-            if( !previousTargetParentId.equals(null) ) {
-                sm.send("getTargetListUpdate," + previousTargetParentId);
+            if( !sm.getCurrentParentId().equals(null) ) {
+                //sm.send("getTargetListUpdate," + previousTargetParentId);
+                sm.send("getTargetListUpdate," + sm.getCurrentParentId());
                 return true;
             } else {
                 return false;
@@ -386,7 +395,7 @@ public class TargetListView extends ActionBarActivity {
                                     Log.d(TAG, "Add Target Name -> "       + addTargetName.getText().toString());
                                     Log.d(TAG, "Add Target Genre -> "      + addTargetGenre.getSelectedItem().toString());
                                     Log.d(TAG, "Add Target BeforAfter -> " + addTargetBeforeAfter.getSelectedItem().toString());
-                                    sm.send("addTarget," + pjName + "," + previousTarget + "," + addTargetName.getText().toString() + "," +
+                                    sm.send("addTarget," + pjName + "," + previousTargetParentId + "," + addTargetName.getText().toString() + "," +
                                             addTargetGenre.getSelectedItem().toString() + "," + addTargetBeforeAfter.getSelectedItem().toString());
                                 }
                             }
@@ -394,7 +403,7 @@ public class TargetListView extends ActionBarActivity {
                     .setNegativeButton("キャンセル", null)
                     .show();
         } else if(item.getTitle().equals( "TargetReflesh" )) {
-            sm.send("getTargetListUpdate," + currentTargetParentId);
+            sm.send("getTargetListUpdate," + sm.getCurrentParentId());
         }
         Toast.makeText(this, "Selected Item: " + item.getTitle(), Toast.LENGTH_SHORT).show();
         return super.onOptionsItemSelected(item);

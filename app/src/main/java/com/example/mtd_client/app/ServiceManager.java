@@ -19,8 +19,12 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.lang.reflect.Array;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.lang.Object;
+import java.util.Timer;
+import java.util.TimerTask;
 
 /**
  * Created by Gzock on 2014/04/28.
@@ -36,6 +40,9 @@ public class ServiceManager {
     private              String            selectedPj        = null;
     private              ViewGroup         _vg               = null;
     private              Boolean           serviceState      = false;
+    private              String            currentParentId   = null;
+
+    ArrayList<String> parentArray = new ArrayList<String>();
 
     public ServiceManager() {
         // ServiceConnectionの用意
@@ -124,7 +131,7 @@ public class ServiceManager {
         @Override
         public void onReceive(final Context context, Intent intent) {
 
-            String rcvMessage = intent.getStringExtra("rcvMessage");
+            String rcvMessage = intent.getStringExtra("message");
             final ArrayList<String> strList = toArrayStr(rcvMessage);
 
             if( strList.get(0).equals("pjList")) {
@@ -185,30 +192,71 @@ public class ServiceManager {
 
                 final ArrayList<TargetListData> dataList = new ArrayList<TargetListData>();
                 String[] temp = rcvMessage.split(",");
-                for(int i = 1; i < temp.length; i += 8) {
+                for(int i = 1; i < temp.length; i += 11) {
                     TargetListData _data = new TargetListData();
                     _data.setId               ( temp[i] );
                     _data.setParent           ( temp[i + 1] );
+                    if( i == 1 ) { currentParentId = temp[i + 1]; }
                     _data.setTargetName       ( temp[i + 2] );
                     _data.setPhotoBeforeAfter ( temp[i + 3] );
                     _data.setPhotoCheck       ( temp[i + 4] );
-                    _data.setBfrPhotoPercent  ( temp[i + 5] );
-                    _data.setAftPhotoPercent  ( temp[i + 6] );
-                    _data.setType             ( temp[i + 7] );
-
-                    dataList.add         ( _data );
+                    _data.setBfrPhotoShotCnt  ( temp[i + 5] );
+                    _data.setBfrPhotoTotalCnt ( temp[i + 6] );
+                    _data.setAftPhotoShotCnt  ( temp[i + 7] );
+                    _data.setAftPhotoTotalCnt ( temp[i + 8] );
+                    _data.setType             ( temp[i + 9] );
+                    _data.setLock             ( temp[i + 10]);
+                    dataList.add              ( _data );
                 }
-
+                if( parentArray.size() > 1 && ( parentArray.get( parentArray.size() - 2 ).equals( currentParentId ) ) ) {
+                    parentArray.remove( parentArray.size() - 1 );
+                } else {
+                    parentArray.add( currentParentId );
+                }
                 TargetListAdapter targetListAdapter = new TargetListAdapter(con, 0, dataList);
                 ListView listView = (ListView) _vg.findViewById(R.id.targetListView);
                 listView.setAdapter( targetListAdapter );
 
+            } else if(strList.get(0).equals( "disConnect" )) {
+                Toast.makeText(con, "WebSocket接続切断...", Toast.LENGTH_LONG).show();
+                Timer mTimer = null;
+                mTimer = new Timer(true);
+                mTimer.schedule( new TimerTask(){
+                    @Override
+                    public void run() {
+                        Log.d(TAG, "WebSocket接続チェック...");
+                        if( !client.isConnected() ) {
+                            Log.d(TAG, "WebSocket未接続のため、再接続を試みる");
+                            client.connect();
+                        } else {
+                            Toast.makeText(con, "WebSocket再接続完了", Toast.LENGTH_LONG).show();
+                            this.cancel();
+                        }
+
+                    }
+                }, 5000, 5000);
+            } else if(strList.get(0).equals( "Error")) {
+                Toast.makeText(con, "WebSocket接続エラー...", Toast.LENGTH_LONG).show();
             }
             //((MySample)context).textview01.setText("count: " + counter);
         }
 
     }
 
+    public void setCurrentParentId(String str) {
+        parentArray.add( str );
+    }
+
+    public String getCurrentParentId() {
+        if( parentArray.size() > 1 ) {
+            Log.d(TAG, "CurrentParentId -> " + parentArray.get( parentArray.size() - 2 ));
+            return parentArray.get( parentArray.size() - 2 );
+        } else {
+            return parentArray.get( parentArray.size() - 1 );
+        }
+        //Log.d(TAG, "CurrentParentId -> null...");
+        //return null;
+    }
 
     private ArrayList<String> toArrayStr(String message) {
         String[] strs = message.split(",");

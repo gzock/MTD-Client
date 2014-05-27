@@ -28,6 +28,8 @@ public class TargetListAdapter extends ArrayAdapter {
 
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
+        Long bfrPer = null;
+        Long aftPer = null;
 
         // ビューを受け取る
         View view = convertView;
@@ -51,8 +53,18 @@ public class TargetListAdapter extends ArrayAdapter {
             // ターゲットが建物か機器かで、per1,2の内容変更
             // TODO 進捗率表示
             if( items.get(position).getType() == 0 ) {
-                per1.setText( "施工前進捗率: " + items.get(position).getBfrPhotoPercent().toString() + "%" );
-                per2.setText( "施工後進捗率: " + items.get(position).getAftPhotoPercent().toString() + "%" );
+                if( items.get(position).getBfrPhotoTotalCnt() != 0 ) {
+                    bfrPer = Math.round( (items.get(position).getBfrPhotoShotCnt() / items.get(position).getBfrPhotoTotalCnt()) * 100 );
+                } else {
+                    bfrPer = 0L;
+                }
+                if( items.get(position).getAftPhotoTotalCnt() != 0 ) {
+                    aftPer = Math.round( (items.get(position).getAftPhotoShotCnt() / items.get(position).getAftPhotoTotalCnt()) * 100 );
+                } else {
+                    aftPer = 0L;
+                }
+                per1.setText( "施工前進捗率: " + bfrPer + "%" );
+                per2.setText( "施工後進捗率: " + aftPer + "%" );
             } else {
                 if( items.get(position).getPhotoBeforeAfter() == 0) {
                     per1.setText("施工前");

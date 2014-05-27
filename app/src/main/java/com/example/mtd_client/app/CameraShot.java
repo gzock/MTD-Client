@@ -3,6 +3,7 @@ package com.example.mtd_client.app;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.content.res.Resources;
+import android.graphics.Rect;
 import android.hardware.Camera;
 import android.media.Image;
 import android.os.Environment;
@@ -25,6 +26,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 
 
@@ -145,25 +147,79 @@ public class CameraShot extends ActionBarActivity {
                 }
             }
         });
-        /*
-        // mCamPreview に タッチイベントを設定
-        mCamPreview.setOnTouchListener(new View.OnTouchListener() {
-            public boolean onTouch(View v, MotionEvent event) {
-                if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                    if (!mIsTake) {
-                        // 撮影中の2度押し禁止用フラグ
-                        mIsTake = true;
-                        // 画像取得
-                        mCam.takePicture(null, null, mPicJpgListener);
 
+        if(mCamPreview != null) {
+            // mCamPreview に タッチイベントを設定
+            // マニュアルフォーカス
+            // ちゃんとソース理解しよう
+            // 感謝! -> http://stackoverflow.com/questions/17968132/set-the-camera-focus-area-in-android
+            // http://techsketcher.blogspot.jp/2012/12/android40.html
+            mCamPreview.setOnTouchListener(new View.OnTouchListener() {
+                public boolean onTouch(View v, MotionEvent event) {
+                    if (event.getAction() == MotionEvent.ACTION_UP) {
+                        if (mCam != null) {
+                            Log.d(TAG, "Manual Focus Start");
+                            float x = event.getX();
+                            float y = event.getY();
+                            float touchMajor = event.getTouchMajor();
+                            float touchMinor = event.getTouchMinor();
+
+                            Rect touchRect = new Rect((int) (x - touchMajor / 2), (int) (y - touchMinor / 2), (int) (x + touchMajor / 2), (int) (y + touchMinor / 2));
+
+                            submitFocusAreaRect(touchRect);
+                        }
                     }
+                    return true;
                 }
-                return true;
-            }
-        });
-        */
+            });
+        }
+
 
     }
+
+    private void submitFocusAreaRect(final Rect touchRect)
+    {
+        Camera.Parameters cameraParameters = mCam.getParameters();
+
+        if (cameraParameters.getMaxNumFocusAreas() == 0)
+        {
+            return;
+        }
+
+        // Convert from View's width and height to +/- 1000
+
+        Rect focusArea = new Rect();
+
+        focusArea.set(touchRect.left * 2000 / mCamPreview.getWidth() - 1000,
+                touchRect.top * 2000 / mCamPreview.getHeight() - 1000,
+                touchRect.right * 2000 / mCamPreview.getWidth() - 1000,
+                touchRect.bottom * 2000 / mCamPreview.getHeight() - 1000);
+
+        // Submit focus area to camera
+
+        ArrayList<Camera.Area> focusAreas = new ArrayList<Camera.Area>();
+        focusAreas.add(new Camera.Area(focusArea, 1000));
+
+        cameraParameters.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
+        cameraParameters.setFocusAreas(focusAreas);
+        mCam.setParameters(cameraParameters);
+
+        // Start the autofocus operation
+
+        mCam.autoFocus(mAutoFocusListener);
+    }
+    /**
+     * オートフォーカス完了のコールバック
+     */
+    private Camera.AutoFocusCallback mAutoFocusListener = new Camera.AutoFocusCallback() {
+        public void onAutoFocus(boolean success, Camera camera) {
+            if(success) {
+                Log.d(TAG, "Manual Focus Success !!");
+            }else {
+                Log.d(TAG, "Manual Focus Failed...");
+            }
+        }
+    };
 
     /**
      * JPEG データ生成完了時のコールバック
@@ -185,6 +241,9 @@ public class CameraShot extends ActionBarActivity {
             byte[] sendDataBytes = byteBuf.array();
 
             sm.send(sendDataBytes);
+            sendDataBytes = null;
+            byteBuf.clear();
+            data = null;
             /*
             String saveDir = Environment.getExternalStorageDirectory().getPath() + "/test";
             // SD カードフォルダを取得
@@ -217,6 +276,7 @@ public class CameraShot extends ActionBarActivity {
             mIsTake = false;
             sm.unBindWsService();
             CameraShot.this.setResult(CAMERA_SHOT);
+            //mCam.release();
             CameraShot.this.finish();
         };
     };
@@ -270,6 +330,17 @@ public class CameraShot extends ActionBarActivity {
         */
         super.onDestroy();
     }
+
+    // onStopでリリースとかしないとダメらしい
+    // http://www.atmarkit.co.jp/ait/articles/1005/27/news097.html
+    @Override
+    protected void onStop() {
+        if(mCam != null) {
+            mCam.stopPreview();
+            mCam.release();
+        }
+        super.onStop();
+  }
     @Override
     public void onUserLeaveHint(){
         //ホームボタンが押された時や、他のアプリが起動した時に呼ばれる

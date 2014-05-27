@@ -55,7 +55,7 @@ public class WebSocketService extends Service {
                 Log.d(TAG, String.format("Got string message! %s", message));
 
                 Intent intent = new Intent(ACTION);
-                intent.putExtra("rcvMessage", message);
+                intent.putExtra("message", message);
                 sendBroadcast(intent);
 
             }
@@ -68,11 +68,19 @@ public class WebSocketService extends Service {
             @Override
             public void onDisconnect(int code, String reason) {
                 Log.d(TAG, String.format("Disconnected! Code: %d Reason: %s", code, reason));
+
+                Intent intent = new Intent(ACTION);
+                intent.putExtra("message", "disConnect");
+                sendBroadcast(intent);
             }
 
             @Override
             public void onError(Exception error) {
                 Log.e(TAG, "Error!", error);
+
+                Intent intent = new Intent(ACTION);
+                intent.putExtra("message", "error");
+                sendBroadcast(intent);
             }
 
         }, extraHeaders);
@@ -83,6 +91,7 @@ public class WebSocketService extends Service {
 
     }
 
+    public void connect() { client.connect(); };
     public boolean isConnected() {
         return client.isConnected();
     }
@@ -90,12 +99,10 @@ public class WebSocketService extends Service {
 
     public void send(String str) {
         client.send(str);
-        Log.d(TAG, "send(string) -> " + str);
     }
 
     public void send(byte[] data) {
         client.send(data);
-        Log.d(TAG, "send(byte[]) -> " + data);
     }
 
 

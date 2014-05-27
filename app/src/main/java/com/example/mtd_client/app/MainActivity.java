@@ -82,23 +82,27 @@ public class MainActivity extends ActionBarActivity
         testBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                try {
-                    // 送信
-                    Log.d(TAG, "Send...");
-                    byte[] buf = {0x40,0x41,0x42,0x43,0x44,0x45};
-                    sm.send("hello...?");
+                if(sm.isWsConnected()) {
+                    try {
+                        // 送信
+                        Log.d(TAG, "Send...");
+                        byte[] buf = {0x40, 0x41, 0x42, 0x43, 0x44, 0x45};
+                        sm.send("hello...?");
 
-                    EditText userId = (EditText) findViewById(R.id.userIdTextBox);
-                    EditText password = (EditText) findViewById(R.id.passTextBox);
-                    Log.d(TAG, "userId -> " + userId.getText());
-                    Log.d(TAG, "password -> " + password.getText());
+                        EditText userId = (EditText) findViewById(R.id.userIdTextBox);
+                        EditText password = (EditText) findViewById(R.id.passTextBox);
+                        Log.d(TAG, "userId -> " + userId.getText());
+                        Log.d(TAG, "password -> " + password.getText());
 
-                    String[] strs = {userId.getText().toString(), password.getText().toString()};
-                    sm.send( "login," + userId.getText().toString() + "," + password.getText().toString() );
-                    //client.send(buf);
+                        String[] strs = {userId.getText().toString(), password.getText().toString()};
+                        sm.send("login," + userId.getText().toString() + "," + password.getText().toString());
+                        //client.send(buf);
 
-                } catch (NotYetConnectedException e) {
-                    e.printStackTrace();
+                    } catch (NotYetConnectedException e) {
+                        e.printStackTrace();
+                    }
+                } else {
+                    Toast.makeText(MainActivity.this, "WebSocketサービスが非接続状態です", Toast.LENGTH_LONG);
                 }
             }
         });
