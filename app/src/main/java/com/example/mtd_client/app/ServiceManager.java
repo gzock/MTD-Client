@@ -29,6 +29,7 @@ import java.util.TimerTask;
 /**
  * Created by Gzock on 2014/04/28.
  */
+
 public class ServiceManager {
 
     private              ServiceConnection serviceConnection = null;

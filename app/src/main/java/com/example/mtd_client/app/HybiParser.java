@@ -1,4 +1,4 @@
-package com.example.mtd_client.app;//
+//
 // HybiParser.java: draft-ietf-hybi-thewebsocketprotocol-13 parser
 //
 // Based on code from the faye project.
@@ -27,6 +27,8 @@ package com.example.mtd_client.app;//
 // LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+package com.example.mtd_client.app;
 
 import android.util.Log;
 

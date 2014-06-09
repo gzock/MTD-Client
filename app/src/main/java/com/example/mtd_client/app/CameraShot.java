@@ -1,5 +1,13 @@
 package com.example.mtd_client.app;
 
+import android.app.AlertDialog;
+import android.content.BroadcastReceiver;
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.content.res.Resources;
@@ -7,8 +15,10 @@ import android.graphics.Rect;
 import android.hardware.Camera;
 import android.media.Image;
 import android.os.Environment;
+import android.os.IBinder;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.util.Base64;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.Menu;
@@ -17,10 +27,17 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
+import android.widget.ListView;
 import android.widget.Toast;
+
+import com.koushikdutta.async.http.socketio.SocketIOClient;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -28,6 +45,10 @@ import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+
+import javax.crypto.*;
+import javax.crypto.spec.SecretKeySpec;
+import org.apache.commons.codec.binary.Hex;
 
 
 public class CameraShot extends ActionBarActivity {
@@ -47,8 +68,9 @@ public class CameraShot extends ActionBarActivity {
     private String targetName = null;
 
     private boolean shotFlag = false;
-
-
+    private SocketIOService socketio            = null;
+    private SocketIOClient client = null;
+    private              ServiceReceiver   receiver          =  new ServiceReceiver();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,6 +93,9 @@ public class CameraShot extends ActionBarActivity {
 
 
 
+        //TODO: こっち側でreciverでupdate受け取って、json受け渡してfinish -> Mainでjsonを使ってlistview更新とかどう？
+        //TODO: どうせ今までのほうだと更新無理だったんだし
+
         Resources resources = getResources();
         Configuration config = resources.getConfiguration();
 
@@ -82,7 +107,11 @@ public class CameraShot extends ActionBarActivity {
 
             case Configuration.ORIENTATION_LANDSCAPE:
 
-                sm.bindWsService(CameraShot.this);
+                //sm.bindWsService(CameraShot.this);
+                Intent intent = new Intent(CameraShot.this, SocketIOService.class);
+                IntentFilter filter = new IntentFilter(SocketIOService.ACTION);
+                CameraShot.this.registerReceiver(receiver, filter);
+                Boolean bool = CameraShot.this.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
                 // カメラインスタンスの取得
                 try {
                     mCam = Camera.open();
@@ -177,6 +206,19 @@ public class CameraShot extends ActionBarActivity {
 
     }
 
+    private ServiceConnection serviceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            socketio = ((SocketIOService.SocketIOBinder)service).getService();
+            client = socketio.getSocketIOClinet();
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            socketio = null;
+        }
+    };
+
     private void submitFocusAreaRect(final Rect touchRect)
     {
         Camera.Parameters cameraParameters = mCam.getParameters();
@@ -229,7 +271,36 @@ public class CameraShot extends ActionBarActivity {
             if (data == null) {
                 return;
             }
+            String checkSum = null;
 
+            try {
+                String KEY = "hogehoge";
+                String ALGORISM = "hmacSHA256";
+                SecretKeySpec secretKeySpec = new SecretKeySpec(KEY.getBytes(), ALGORISM);
+
+                Mac mac = Mac.getInstance(ALGORISM);
+                mac.init(secretKeySpec);
+                byte[] result = mac.doFinal( data ); // "hoge"が認証メッセージ
+                checkSum = new String(Hex.encodeHex(result));
+            } catch (Exception e) {
+                Log.d(TAG, e.toString());
+            }
+
+            String base64Enc = Base64.encodeToString( data, Base64.DEFAULT);
+
+            JSONArray jArray = new JSONArray();
+            JSONObject jObj = new JSONObject();
+            try {
+                jObj.put("id", targetId);
+                jObj.put("data", base64Enc);
+                jObj.put("check_sum", checkSum);
+                jArray.put(jObj);
+                client.emit("addPhoto", jArray);
+
+            } catch (Exception e) {
+                Log.d(TAG, e.toString());
+            }
+            /*
             // ターゲットID (24byte)を生成し、画像データの前にくっつける
             byte[] targetIdBytes   = targetId.getBytes();
             //byte[] targetNameBytes = targetName.getBytes();
@@ -244,40 +315,16 @@ public class CameraShot extends ActionBarActivity {
             sendDataBytes = null;
             byteBuf.clear();
             data = null;
-            /*
-            String saveDir = Environment.getExternalStorageDirectory().getPath() + "/test";
-            // SD カードフォルダを取得
-            File file = new File(saveDir);
-            // フォルダ作成
-            if (!file.exists()) {
-                if (!file.mkdir()) {
-                    Log.e("Debug", "Make Dir Error");
-                }
-            }
-            // 画像保存パス
-            Calendar cal = Calendar.getInstance();
-            SimpleDateFormat sf = new SimpleDateFormat("yyyyMMdd_HHmmss");
-            //String imgPath = saveDir + "/" + sf.format(cal.getTime()) + ".jpg";
-            String imgPath = saveDir + "/" + pictureTargetName + ".jpg";
-            // ファイル保存
-            FileOutputStream fos;
-            try {
-                //第二引数をfalseにすると上書き許可
-                fos = new FileOutputStream(imgPath, false);
-                fos.write(data);
-                fos.close();
-                // アンドロイドのデータベースへ登録
-                // (登録しないとギャラリーなどにすぐに反映されないため)
-                //registAndroidDB(imgPath);
-            } catch (Exception e) {
-                Log.e("Debug", e.getMessage());
-            }
+            sm.unBindWsService();
             */
             mIsTake = false;
-            sm.unBindWsService();
             CameraShot.this.setResult(CAMERA_SHOT);
             //mCam.release();
+            CameraShot.this.unregisterReceiver( receiver );
+            CameraShot.this.unbindService( serviceConnection );
             CameraShot.this.finish();
+
+
         };
     };
 
@@ -292,6 +339,16 @@ public class CameraShot extends ActionBarActivity {
 
         }
         return false;
+    }
+
+    // Receiverクラス
+    public class ServiceReceiver extends BroadcastReceiver {
+
+        @Override
+        public void onReceive(final Context context, Intent intent) {
+
+        }
+
     }
 
 
@@ -318,16 +375,7 @@ public class CameraShot extends ActionBarActivity {
     @Override
     protected void onDestroy() {
 
-        if(sm.isWsServiceState()) {
-            sm.unBindWsService();
-        }
-        /*
-        if(sm.isWsConnected()) {
-            sm.disConnect();
-        }
-
-        sm.stopWsService();
-        */
+        //CameraShot.this.unbindService( serviceConnection );
         super.onDestroy();
     }
 

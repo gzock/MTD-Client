@@ -77,7 +77,7 @@ public class TargetListAdapter extends ArrayAdapter {
 
             // pictureが1なら撮影済みなので、チェック画像表示
             if ( items.get(position).getPhotoCheck() == 1 ) {
-                image.setImageResource(R.drawable.ok_m);
+                image.setImageResource(R.drawable.submit);
             }
             //message.setText(items.get(position).getMessage());
             //image.setImageResource(R.drawable.ic_launcher);

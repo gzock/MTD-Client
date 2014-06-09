@@ -30,6 +30,10 @@ import android.widget.ListView;
 import android.widget.Spinner;
 import android.widget.Toast;
 
+import com.koushikdutta.async.http.socketio.SocketIOClient;
+
+import org.json.JSONArray;
+
 import java.io.File;
 import java.lang.annotation.Target;
 import java.util.ArrayList;
@@ -42,7 +46,7 @@ public class TargetListView extends ActionBarActivity {
 
     Handler mHandler;
     private ServiceManager sm = new ServiceManager();
-    private String targetList = null;
+    private SerializableJSONArray targetList = null;
     private ArrayList<TargetListData> dataList = new ArrayList<TargetListData>();
 
     private String previousTarget = null;
@@ -56,6 +60,7 @@ public class TargetListView extends ActionBarActivity {
 
     TargetListData item = null;
     private Dialog dialog = null;
+    SocketIOServiceManager sIoSm = new SocketIOServiceManager();
 
     /**
      * Fragment managing the behaviors, interactions and presentation of the navigation drawer.
@@ -74,10 +79,16 @@ public class TargetListView extends ActionBarActivity {
         //値が設定されていない場合にはextrasにはnullが設定されます。
         if(extras != null) {
             //値が設定されている場合
-            targetList = extras.getString("TargetList");
-            previousTarget = pjName = extras.getString("PJName");
+            targetList = (SerializableJSONArray)extras.getSerializable("TargetList");
+            //previousTarget = pjName = extras.getString("PJName");
         }
+        JSONArray temp = targetList.getJSONArray();
+        sIoSm.bindSIOService(getApplicationContext());
+        Log.d(TAG, "hogehoge");
+        sIoSm.emit("getTargetList", temp);
 
+
+        /*
         String[] temp = targetList.split(",");
         for(int i = 0; i < temp.length; i += 11) {
             TargetListData _data = new TargetListData();
@@ -134,7 +145,7 @@ public class TargetListView extends ActionBarActivity {
             sm.bindWsService(getApplicationContext());
         }
         sm.setView( (ViewGroup)this.getWindow().getDecorView() );
-
+        */
     }
 
     @Override
