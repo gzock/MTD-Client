@@ -288,6 +288,13 @@ public class CameraShot extends ActionBarActivity {
 
             String base64Enc = Base64.encodeToString( data, Base64.DEFAULT);
 
+            SendJobData sendJobData = new SendJobData();
+            sendJobData.setTargetID( targetId );
+            sendJobData.setData( base64Enc );
+            sendJobData.setCheckSum( checkSum );
+
+            socketio.addSendJob( sendJobData );
+            /*
             JSONArray jArray = new JSONArray();
             JSONObject jObj = new JSONObject();
             try {
@@ -300,6 +307,7 @@ public class CameraShot extends ActionBarActivity {
             } catch (Exception e) {
                 Log.d(TAG, e.toString());
             }
+            */
             /*
             // ターゲットID (24byte)を生成し、画像データの前にくっつける
             byte[] targetIdBytes   = targetId.getBytes();

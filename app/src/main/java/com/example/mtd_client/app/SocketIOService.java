@@ -2,19 +2,25 @@ package com.example.mtd_client.app;
 
 import android.app.Service;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Binder;
 import android.os.IBinder;
 import android.util.Log;
+import android.widget.Toast;
+
+import java.net.URI;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
 
 import com.koushikdutta.async.http.AsyncHttpClient;
+import com.koushikdutta.async.http.libcore.RawHeaders;
 import com.koushikdutta.async.http.socketio.Acknowledge;
 import com.koushikdutta.async.http.socketio.ConnectCallback;
 import com.koushikdutta.async.http.socketio.DisconnectCallback;
 import com.koushikdutta.async.http.socketio.ErrorCallback;
 import com.koushikdutta.async.http.socketio.EventCallback;
 import com.koushikdutta.async.http.socketio.JSONCallback;
+import com.koushikdutta.async.http.socketio.ReconnectCallback;
 import com.koushikdutta.async.http.socketio.SocketIOClient;
 import com.koushikdutta.async.http.socketio.SocketIORequest;
 import com.koushikdutta.async.http.socketio.StringCallback;
@@ -27,6 +33,8 @@ import java.security.KeyStore;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
 
 
@@ -39,11 +47,18 @@ public class SocketIOService extends Service {
     public static final String ACTION = "SocketIOService";
     public static final int PLOJECT_LIST = 1;
     public static final int UPDATE_TARGET_LIST = 2;
+    public static final int DISCONNECTED= 10;
 
     private final static SocketIORequest req = new SocketIORequest("https:/192.168.0.5:443");
     private SocketIOClient socketio = null;
     private final IBinder mBinder = new SocketIOBinder();
     private SerializableJSONArray serialJArray = null;
+    Timer mTimer = null;
+
+    ArrayList<SendJobData> jobManageArray = new ArrayList<SendJobData>();
+    private String authId = null;
+    private SSLContext sslContext = null;
+    private TrustManagerFactory tmf = null;
 
     public SocketIOService() {
     }
@@ -52,6 +67,46 @@ public class SocketIOService extends Service {
     public int onStartCommand  (Intent intent, int flags, int startId) {
         //super.onStart(intent, startId);
 
+        startSocketIO();
+
+        mTimer = new Timer(true);
+        mTimer.schedule( new TimerTask(){
+            @Override
+            public void run() {
+                Log.d(TAG, "Socket.IO Connect Check...");
+
+                if( socketio != null && socketio.isConnected() ) {
+                    Log.d(TAG, "Socket.IO Connected. Start the send of the send waiting job");
+                    if (0 < jobManageArray.size()) {
+                        Log.d(TAG, "Send Waiting Job Count -> " + jobManageArray.size());
+                        for (SendJobData item : jobManageArray) {
+                            if (socketio.isConnected()) {
+                               socketio.emit("addPhoto", item.getSendaDataJson());
+                            } else {
+                                Log.d(TAG, "Socket.IO Not Connected");
+                                break;
+                            }
+                        }
+                    } else {
+                        Log.d(TAG, "No Send Waiting Job...");
+                    }
+                } else {
+                    Log.d(TAG, "Socket.IO Not Connected... ReConnection Process Start");
+                    Intent intent = new Intent(ACTION);
+                    intent.putExtra("event", DISCONNECTED);
+                    sendBroadcast(intent);
+
+                    startSocketIO();
+                }
+            }
+        }, 10000, 10000);
+
+
+        return START_STICKY_COMPATIBILITY;
+
+    }
+
+    private TrustManagerFactory getSslTrustManager() {
         try {
             CertificateFactory cf = CertificateFactory.getInstance("X.509");
 
@@ -72,29 +127,60 @@ public class SocketIOService extends Service {
             TrustManagerFactory tmf = TrustManagerFactory.getInstance(tmfAlgorithm);
             tmf.init(keyStore);
 
-            // Create an SSLContext that uses our TrustManager
-            SSLContext context = SSLContext.getInstance("TLS");
-            context.init(null, tmf.getTrustManagers(), null);
+            return tmf;
 
-            AsyncHttpClient.getDefaultInstance().getSSLSocketMiddleware().setSSLContext(context);
+        } catch (Exception e) {
+            Log.d(TAG, e.toString());
+            return null;
+        }
+    }
+
+    private void startSocketIO() {
+        try {
+
+            if( sslContext == null || tmf == null ) {
+                sslContext = SSLContext.getInstance("TLS");
+                tmf = this.getSslTrustManager();
+                sslContext.init(null, tmf.getTrustManagers(), null);
+            }
+            AsyncHttpClient.getDefaultInstance().getSSLSocketMiddleware().setSSLContext(sslContext);
             AsyncHttpClient.getDefaultInstance().getSSLSocketMiddleware().setTrustManagers(tmf.getTrustManagers());
 
-
-            SocketIOClient.connect(AsyncHttpClient.getDefaultInstance(), "https://192.168.0.5:443", new ConnectCallback() {
-            //client.connect(AsyncHttpClient.getDefaultInstance(), req, new ConnectCallback() {
+            SocketIORequest _req = new SocketIORequest("https://192.168.0.5:443");
+            if( authId != null ) {
+                Log.d(TAG, "Found AuthID");
+                Log.d(TAG, "AuthID -> " + authId);
+                _req.addHeader("auth_id", authId);
+            } else {
+                Log.d(TAG, "Not Found AuthID...");
+            }
+            SocketIOClient.connect(AsyncHttpClient.getDefaultInstance(), _req, new ConnectCallback() {
+                //client.connect(AsyncHttpClient.getDefaultInstance(), req, new ConnectCallback() {
                 @Override
-                public void onConnectCompleted(Exception ex, SocketIOClient client) {
+                public void onConnectCompleted(Exception ex, final SocketIOClient client) {
                     if (ex != null) {
                         return;
                     }
                     Log.d(TAG, "Socket.io Connected");
                     socketio = client;
 
+
+                    client.setReconnectCallback(new ReconnectCallback() {
+                        @Override
+                        public void onReconnect() {
+                            Log.d(TAG, "Socket.IO ReConnected !");
+
+                        }
+                    });
+
                     //Save the returned SocketIOClient instance into a variable so you can disconnect it later
                     client.setDisconnectCallback(new DisconnectCallback() {
                         @Override
                         public void onDisconnect(Exception e) {
                             Log.d(TAG, "Disconnected -> " + e.toString());
+                            Intent intent = new Intent(ACTION);
+                            intent.putExtra("event", DISCONNECTED);
+                            sendBroadcast(intent);
                         }
                     });
                     client.setErrorCallback(new ErrorCallback() {
@@ -142,6 +228,39 @@ public class SocketIOService extends Service {
                         }
                     });
 
+                    client.on("authId", new EventCallback() {
+                        @Override
+                        public void onEvent(JSONArray argument, Acknowledge acknowledge) {
+
+                            try {
+                                Log.d(TAG, "AuthID Taught");
+                                authId = argument.getJSONObject(0).getString("auth_id");
+                                Log.d(TAG, "Auth ID -> " + authId);
+                            } catch (Exception e) {
+                                Log.d(TAG, e.toString());
+                            }
+                        }
+                    });
+
+                    client.on("addPhotoSuccess", new EventCallback() {
+                        @Override
+                        public void onEvent(JSONArray argument, Acknowledge acknowledge) {
+                            try {
+                                String str = argument.getJSONObject(0).getString("target_id");
+                                Log.d(TAG, "addPhotoSuccess -> " + str);
+                                for( int i = 0; i < jobManageArray.size(); i++ ) {
+                                    if( str.equals( jobManageArray.get(i).getTargetId() ) ) {
+                                        jobManageArray.remove(i);
+                                        Log.d(TAG, "JobRemove -> " + str);
+                                    }
+                                }
+                            } catch (Exception e) {
+                                Log.d(TAG, e.toString());
+                            }
+                        }
+                    });
+
+
 
                     //You need to explicitly specify which events you are interested in receiving
                     client.addListener("news", new EventCallback() {
@@ -150,43 +269,20 @@ public class SocketIOService extends Service {
 
                         }
                     });
-
                 }
-
             });
         } catch (Exception e) {
             Log.d(TAG, e.toString());
         }
-
-
-        return START_STICKY_COMPATIBILITY;
-
     }
 
-    private HashMap<String, JSONArray> toSplitArray(JSONArray array) {
-        String mergeStr = "";
-        JSONArray jObj = new JSONArray();
-        String tempStr = null;
-        String tempStr2 = null;
-        int n = 0;
-        int j = 0;
-        HashMap<String, JSONArray> map = new HashMap<String, JSONArray>();
-
-        try {
-           // map.put("json", array.getJSONArray(0));
-            /*
-            for (int i = 0; i <= array.length(); i++) {
-                jObj = array.getJSONArray(i);
-                tempStr += jObj.toString();
-                tempStr2 = array.get(0).toString();
+    public void addSendJob( SendJobData item ) {
+        jobManageArray.add( item );
+        if( socketio.isConnected() ) {
+            if( jobManageArray.size() == 1 ) {
+               socketio.emit( "addPhoto", item.getSendaDataJson() );
             }
-            */
-
-        }catch (Exception e) {
-            Log.d(TAG, e.toString());
         }
-
-        return map;
     }
 
     public SocketIOClient getSocketIOClinet() {

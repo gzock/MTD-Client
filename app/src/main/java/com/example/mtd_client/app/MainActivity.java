@@ -62,6 +62,11 @@ public class MainActivity extends ActionBarActivity
 
     private static final String TAG = "MainActivity";
     private static final int CAMERA_SHOT_ACTIVITY  = 0;
+    private static final int PROJECT_LIST_DIALOG = 0;
+    private static final int TARGET_DIALOG = 1;
+    private static final int TARGET_DIALOG_2 = 2;
+    private static final int TARGET_EDIT_DIALOG = 3;
+    private static final int TARGET_DELTE_DIALOG = 4;
 
     private ServiceManager sm = new ServiceManager();
     //private SocketIOServiceManager sIOsm = new SocketIOServiceManager();
@@ -77,6 +82,8 @@ public class MainActivity extends ActionBarActivity
 
     private              ServiceReceiver   receiver          =  new ServiceReceiver();
     private              String            currentParentId   = null;
+    ArrayList<String> pjNameList   = new ArrayList<String>();
+    ArrayList<String> pjRootTargetList = new ArrayList<String>();
 
 
     ArrayList<String> parentArray = new ArrayList<String>();
@@ -143,7 +150,8 @@ public class MainActivity extends ActionBarActivity
                 } catch (Exception e) {
                     Log.d(TAG, e.toString());
                 }
-                if( client.isConnected() ) {
+                client = socketio.getSocketIOClinet();
+                if( client != null && client.isConnected() ) {
                     try {
                         // 送信
                         Log.d(TAG, "Send...");
@@ -173,7 +181,7 @@ public class MainActivity extends ActionBarActivity
                         e.printStackTrace();
                     }
                 } else {
-                    Toast.makeText(MainActivity.this, "WebSocketサービスが非接続状態です", Toast.LENGTH_LONG).show();
+                    Toast.makeText(MainActivity.this, "WebSocketサービスが非接続状態です", Toast.LENGTH_SHORT).show();
                 }
             }
         });
@@ -203,9 +211,11 @@ public class MainActivity extends ActionBarActivity
             JSONArray jArray = null;
 
             try {
-                SerializableJSONArray rcvMessage = (SerializableJSONArray)intent.getSerializableExtra("json");
-                jArray = rcvMessage.getJSONArray();
-                //Log.d(TAG, jArray.getJSONArray(0).getJSONObject(0).getString("username"));
+                if( (SerializableJSONArray)intent.getSerializableExtra("json") != null ) {
+                    SerializableJSONArray rcvMessage = (SerializableJSONArray)intent.getSerializableExtra("json");
+                    jArray = rcvMessage.getJSONArray();
+                    //Log.d(TAG, jArray.getJSONArray(0).getJSONObject(0).getString("username"))
+                }
 
             } catch (Exception e) {
                 Log.d(TAG, e.toString());
@@ -215,8 +225,8 @@ public class MainActivity extends ActionBarActivity
             switch ( eventSwitchNum ) {
                 case SocketIOService.PLOJECT_LIST : {
                     Log.d(TAG, "*** Project List ***");
-                    final ArrayList<String> pjNameList   = new ArrayList<String>();
-                    final ArrayList<String> pjRootTargetList = new ArrayList<String>();
+                    pjNameList   = new ArrayList<String>();
+                    pjRootTargetList = new ArrayList<String>();
 
                     try {
                         // JSONArrayはforeach使えない
@@ -228,35 +238,8 @@ public class MainActivity extends ActionBarActivity
                     } catch (Exception e) {
                         Log.d(TAG, e.toString());
                     }
+                    showDialog( PROJECT_LIST_DIALOG );
 
-                    final CharSequence[] chars = pjNameList.toArray(new CharSequence[pjNameList.size()]);
-                    new AlertDialog.Builder( MainActivity.this )
-                            .setTitle("案件名を選択して下さい")
-                            .setSingleChoiceItems(
-                                    chars,
-                                    0, // Initial
-                                    new DialogInterface.OnClickListener() {
-                                        @Override
-                                        public void onClick(DialogInterface dialog, int which) {
-                                            Log.d(TAG, pjNameList.get(which) + " Selected");
-                                            JSONArray jArray = new JSONArray();
-                                            JSONObject jObj = new JSONObject();
-                                            try {
-                                                jObj.put("parent", pjRootTargetList.get(which));
-                                                jArray.put(jObj);
-                                                client.emit("getTargetList", jArray);
-
-                                            } catch (Exception e) {
-                                                Log.d(TAG, e.toString());
-                                            }
-                                            //selectedPj = strList.get(which);
-                                            MainActivity.this.setContentView(R.layout.activity_target_list_view);
-
-                                        }
-                                    }
-                            )
-                            .setPositiveButton("OK", null)
-                            .show();
                     break;
                 }
                 case SocketIOService.UPDATE_TARGET_LIST : {
@@ -309,8 +292,10 @@ public class MainActivity extends ActionBarActivity
                         public void onItemClick(AdapterView parent, View view, int position, long id) {
                             ListView listView = (ListView) parent;
                             item = (TargetListData)listView.getItemAtPosition(position);
+                            client = socketio.getSocketIOClinet();
 
                             if( item.getType().equals( 0 ) ) {
+                                Log.d(TAG, "isConnected -> " + client.isConnected());
                                 JSONArray jArray = new JSONArray();
                                 JSONObject jObj = new JSONObject();
                                 try {
@@ -321,13 +306,10 @@ public class MainActivity extends ActionBarActivity
                                 } catch (Exception e) {
                                     Log.d(TAG, e.toString());
                                 }
-                                //sm.send( "getTargetListUpdate," + item.getId());
                                 Log.d(TAG, "selected -> " + item.getTargetName());
-                                //previousTarget = item.getId();
-                                //previousTargetParentId = item.getParent();
 
                             } else {
-                                showDialog(0);
+                                showDialog( TARGET_DIALOG );
                             }
                         }
                     });
@@ -337,7 +319,7 @@ public class MainActivity extends ActionBarActivity
                             ListView listView = (ListView) parent;
                             item = (TargetListData) listView.getItemAtPosition(position);
                             if ( item.getType() == 0 ) {
-                                showDialog(1);
+                                showDialog( TARGET_DIALOG_2 );
                             }
                             // trueを返さないと、LongClickのあとに普通のclickが動いてしまう
                             return true;
@@ -346,6 +328,11 @@ public class MainActivity extends ActionBarActivity
 
 
 
+                    break;
+                }
+                case SocketIOService.DISCONNECTED :{
+                    Log.d(TAG, "Socket.IO DisConnected...");
+                    Toast.makeText(MainActivity.this, "Socket.IO DisConnected", Toast.LENGTH_LONG).show();
                     break;
                 }
             }
@@ -445,13 +432,12 @@ public class MainActivity extends ActionBarActivity
     }
 
 
-
-
-
     @Override
     protected void onDestroy() {
-        //MainActivity.this.unregisterReceiver( receiver );
-        //MainActivity.this.unbindService( serviceConnection );
+        MainActivity.this.unregisterReceiver( receiver );
+        MainActivity.this.unbindService( serviceConnection );
+        Intent intent = new Intent(MainActivity.this, SocketIOService.class);
+        MainActivity.this.stopService( intent );
         super.onDestroy();
     }
 
@@ -517,6 +503,7 @@ public class MainActivity extends ActionBarActivity
 
                 switch ( resultCode ) {
                     case CameraShot.CAMERA_SHOT :
+                        client = socketio.getSocketIOClinet();
                         Log.d(TAG, "CameraShot Result");
                         JSONArray jArray = new JSONArray();
                         JSONObject jObj = new JSONObject();
@@ -586,6 +573,7 @@ public class MainActivity extends ActionBarActivity
         }
 
         if(item.getTitle().equals( "TargetAdd" )) {
+            client = socketio.getSocketIOClinet();
             LayoutInflater inflater = LayoutInflater.from(MainActivity.this);
             View view = inflater.inflate(R.layout.add_target_dialog, null);
             final EditText addTargetName = (EditText)view.findViewById(R.id.add_target_name);
@@ -695,10 +683,45 @@ public class MainActivity extends ActionBarActivity
     @Override
     protected Dialog onCreateDialog(int id) {
         dialog = super.onCreateDialog(id);
+        client = socketio.getSocketIOClinet();
+
 
         //idは何個かダイアログがある場合に使う
-        if ( id == 0 )
-        {
+        // ここはswitch使わないほうがいい
+        if( id == PROJECT_LIST_DIALOG) {
+            AlertDialog.Builder dialogBuilder = new AlertDialog.Builder( MainActivity.this );
+            dialogBuilder.setTitle("案件名を選択して下さい");
+
+            final CharSequence[] chars = pjNameList.toArray(new CharSequence[pjNameList.size()]);
+
+            dialogBuilder.setSingleChoiceItems(
+                chars,
+                0, // Initial
+                new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        Log.d(TAG, pjNameList.get(which) + " Selected");
+                        JSONArray jArray = new JSONArray();
+                        JSONObject jObj = new JSONObject();
+                        try {
+                            jObj.put("parent", pjRootTargetList.get(which));
+                            jArray.put(jObj);
+                            client.emit("getTargetList", jArray);
+                            dialog.dismiss();
+
+                        } catch (Exception e) {
+                            Log.d(TAG, e.toString());
+                        }
+                        //selectedPj = strList.get(which);
+                        MainActivity.this.setContentView(R.layout.activity_target_list_view);
+
+                    }
+                }
+            );
+            dialogBuilder.setPositiveButton("OK", null);
+            dialog = dialogBuilder.create();
+
+        } else if ( id == TARGET_DIALOG ) {
             final CharSequence[] chars = {"撮影", "確認", "編集", "削除"};
 
             //showDialogを呼ぶときに１度だけ呼ばれる
@@ -731,11 +754,11 @@ public class MainActivity extends ActionBarActivity
 
                             } else if (switchStr.equals("編集")) {
                                 Toast.makeText( MainActivity.this, switchStr, Toast.LENGTH_LONG).show();
-                                showDialog(2);
+                                showDialog( TARGET_EDIT_DIALOG );
 
                             } else if (switchStr.equals("削除")) {
                                 Toast.makeText( MainActivity.this, switchStr, Toast.LENGTH_LONG).show();
-                                showDialog(3);
+                                showDialog( TARGET_DELTE_DIALOG );
                             }
                         }
                     }
@@ -748,7 +771,7 @@ public class MainActivity extends ActionBarActivity
             });
             dialog = dialogBuilder.create();
 
-        } else if( id == 1 ) {
+        } else if( id == TARGET_DIALOG_2 ) {
             final CharSequence[] chars = {"編集", "削除"};
 
             //showDialogを呼ぶときに１度だけ呼ばれる
@@ -764,11 +787,11 @@ public class MainActivity extends ActionBarActivity
 
                             if (switchStr.equals("編集")) {
                                 Toast.makeText( MainActivity.this, switchStr, Toast.LENGTH_LONG).show();
-                                showDialog(2);
+                                showDialog( TARGET_EDIT_DIALOG );
 
                             } else if (switchStr.equals("削除")) {
                                 Toast.makeText( MainActivity.this, switchStr, Toast.LENGTH_LONG).show();
-                                showDialog(3);
+                                showDialog( TARGET_DELTE_DIALOG );
                             }
                         }
                     }
@@ -781,7 +804,7 @@ public class MainActivity extends ActionBarActivity
             });
             dialog = dialogBuilder.create();
 
-        } else if( id == 2 ) {
+        } else if( id == TARGET_EDIT_DIALOG ) {
             //showDialogを呼ぶときに１度だけ呼ばれる
             AlertDialog.Builder dialogBuilder = new AlertDialog.Builder( MainActivity.this );
 
@@ -826,7 +849,7 @@ public class MainActivity extends ActionBarActivity
             });
             dialog = dialogBuilder.create();
 
-        } else if( id == 3 ) {
+        } else if( id == TARGET_DELTE_DIALOG ) {
             AlertDialog.Builder dialogBuilder = new AlertDialog.Builder( MainActivity.this );
             dialogBuilder.setTitle("項目の削除");
             dialogBuilder.setMessage(item.getTargetName() + "を削除しますか? \n対象配下に機器や建物が存在する場合は、それらも削除されてしまいますので、ご注意下さい");
