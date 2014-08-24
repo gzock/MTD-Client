@@ -17,6 +17,7 @@
     <string name="title_ky">危険予知</string>
     <string name="title_task">タスク</string>
     <string name="title_chat">チャット</string>
+
     <string-array name="add_target_genre_items">
         <item>建物</item>
         <item>機器</item>
@@ -26,5 +27,8 @@
         <item>施工前</item>
         <item>施工後</item>
     </string-array>
+
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="title_activity_photo_confirm">PhotoConfirm</string>
 
 </resources>

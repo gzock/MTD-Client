@@ -1,7 +1,8 @@
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
     tools:context="com.example.mtd_client.app.CameraShot">
 
     <FrameLayout
@@ -11,5 +12,39 @@
         android:layout_alignParentTop="true"
         android:layout_alignParentLeft="true"
         android:layout_alignParentStart="true"
-        android:layout_alignParentBottom="true"></FrameLayout>
-</RelativeLayout>
+        android:layout_alignParentBottom="true">
+    </FrameLayout>
+
+    <ImageButton
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:id="@+id/submitButton"
+        android:layout_gravity="center_horizontal|bottom"
+        android:src="@drawable/camera_submit"
+        android:scaleType="fitXY"
+        android:background="@null"
+        android:clickable="false" />
+
+    <ImageButton
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:id="@+id/reShotButton"
+            android:layout_gravity="left|bottom"
+            android:background="@null"
+            android:src="@drawable/reflesh"
+            android:scaleType="fitXY"
+            android:clickable="false" />
+
+    <ImageButton
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:id="@+id/settingButton"
+        android:layout_gravity="right|bottom"
+        android:src="@drawable/settings"
+        android:scaleType="fitXY"
+        android:background="@null"
+        android:clickable="false" />
+
+
+
+</FrameLayout>

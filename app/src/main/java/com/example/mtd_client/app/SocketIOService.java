@@ -2,13 +2,16 @@ package com.example.mtd_client.app;
 
 import android.app.Service;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.IBinder;
+import android.preference.PreferenceManager;
 import android.util.Log;
 import android.widget.Toast;
 
-import java.net.URI;
+
+import java.net.URL;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
 
@@ -47,6 +50,7 @@ public class SocketIOService extends Service {
     public static final String ACTION = "SocketIOService";
     public static final int PLOJECT_LIST = 1;
     public static final int UPDATE_TARGET_LIST = 2;
+    public static final int PHOTO_CONFIRM = 3;
     public static final int DISCONNECTED= 10;
 
     private final static SocketIORequest req = new SocketIORequest("https:/192.168.0.5:443");
@@ -67,7 +71,13 @@ public class SocketIOService extends Service {
     public int onStartCommand  (Intent intent, int flags, int startId) {
         //super.onStart(intent, startId);
 
-        startSocketIO();
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
+
+        final String serverIpaddress   = preferences.getString("connect_server_ipaddress", "192.168.0.5");
+        final int serverPort           = Integer.parseInt(preferences.getString("connect_server_port", "443"));
+        int reconnectInterval          = Integer.parseInt(preferences.getString("reconnect_interval", "10")) * 1000;
+
+        startSocketIO(serverIpaddress, serverPort);
 
         mTimer = new Timer(true);
         mTimer.schedule( new TimerTask(){
@@ -96,10 +106,10 @@ public class SocketIOService extends Service {
                     intent.putExtra("event", DISCONNECTED);
                     sendBroadcast(intent);
 
-                    startSocketIO();
+                    startSocketIO(serverIpaddress, serverPort);
                 }
             }
-        }, 10000, 10000);
+        }, reconnectInterval, reconnectInterval);
 
 
         return START_STICKY_COMPATIBILITY;
@@ -135,7 +145,7 @@ public class SocketIOService extends Service {
         }
     }
 
-    private void startSocketIO() {
+    private void startSocketIO(String ipaddress, int port) {
         try {
 
             if( sslContext == null || tmf == null ) {
@@ -146,7 +156,7 @@ public class SocketIOService extends Service {
             AsyncHttpClient.getDefaultInstance().getSSLSocketMiddleware().setSSLContext(sslContext);
             AsyncHttpClient.getDefaultInstance().getSSLSocketMiddleware().setTrustManagers(tmf.getTrustManagers());
 
-            SocketIORequest _req = new SocketIORequest("https://192.168.0.5:443");
+            SocketIORequest _req = new SocketIORequest( "https://" + ipaddress + ":" + port );
             if( authId != null ) {
                 Log.d(TAG, "Found AuthID");
                 Log.d(TAG, "AuthID -> " + authId);
@@ -257,6 +267,17 @@ public class SocketIOService extends Service {
                             } catch (Exception e) {
                                 Log.d(TAG, e.toString());
                             }
+                        }
+                    });
+
+                    client.on("photoConfirmTransfer", new EventCallback() {
+                        @Override
+                        public void onEvent(JSONArray argument, Acknowledge acknowledge) {
+                            serialJArray = new SerializableJSONArray(argument);
+                            Intent intent = new Intent(ACTION);
+                            intent.putExtra("event", PHOTO_CONFIRM);
+                            intent.putExtra("json", serialJArray);
+                            sendBroadcast(intent);
                         }
                     });
 

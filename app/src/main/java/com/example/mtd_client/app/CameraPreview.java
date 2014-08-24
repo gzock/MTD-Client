@@ -2,6 +2,7 @@ package com.example.mtd_client.app;
 
 import android.content.Context;
 import android.hardware.Camera;
+import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
@@ -28,12 +29,22 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
      */
     public void surfaceCreated(SurfaceHolder holder) {
         try {
+            Camera.Parameters parameters = mCam.getParameters();
+            Log.d("CameraPreview", "PictureSize -> " + mCam.getParameters().getPictureSize().width + "x" + mCam.getParameters().getPictureSize().height);
+            Log.d("CameraPreview", "PreviewSize -> " + mCam.getParameters().getPreviewSize().width + "x" + mCam.getParameters().getPreviewSize().height);
+
+            //TODO: 解像度選択画面は作らないとね
+            /*
+            parameters.setPictureSize(1920,1080);
+            parameters.setPreviewSize(1280,720);
+            mCam.setParameters(parameters);
+            */
             // カメラインスタンスに、画像表示先を設定
             mCam.setPreviewDisplay(holder);
             // プレビュー開始
             mCam.startPreview();
         } catch (IOException e) {
-            //
+            Log.d("CameraPreview", e.toString());
         }
     }
 

@@ -3,12 +3,15 @@
     package="com.example.mtd_client.app" >
 
     <application
+        android:name=".PassToOtherActivity"
         android:allowBackup="true"
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
-        android:theme="@style/AppTheme" >
+        android:theme="@style/AppTheme"
+        android:uiOptions="splitActionBarWhenNarrow" >
         <activity
             android:name="com.example.mtd_client.app.MainActivity"
+            android:configChanges="orientation|keyboardHidden|screenSize"
             android:label="@string/app_name" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -31,9 +34,27 @@
             android:name="com.example.mtd_client.app.CameraShot"
             android:label="@string/title_activity_camera_shot" >
         </activity>
+
+        <service
+            android:name="com.example.mtd_client.app.SocketIOService"
+            android:enabled="true"
+            android:exported="true" >
+        </service>
+
+        <activity
+            android:name="com.example.mtd_client.app.SettingsActivity"
+            android:label="@string/title_activity_settings" >
+        </activity>
+        <activity
+            android:name="com.example.mtd_client.app.PhotoConfirm"
+            android:label="@string/title_activity_photo_confirm" >
+        </activity>
     </application>
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" />
+
+    <uses-feature android:name="android.hardware.camera" />
+    <uses-feature android:name="android.hardware.camera.autofocus" />
 
 </manifest>

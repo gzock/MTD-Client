@@ -4,6 +4,9 @@ import android.app.Activity;
 
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.app.FragmentBreadCrumbs;
+import android.app.FragmentTransaction;
+//import android.support.v4.app.FragmentTransaction;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -11,15 +14,22 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.content.res.Resources;
+import android.graphics.Typeface;
 import android.hardware.Camera;
+import android.os.Build;
 import android.os.IBinder;
+import android.preference.PreferenceManager;
+import android.support.v4.app.FragmentActivity;
 import android.support.v7.app.ActionBarActivity;
 import android.support.v7.app.ActionBar;
+//import android.app.ActionBar;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
+//import android.app.FragmentManager;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -29,10 +39,12 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.support.v4.widget.DrawerLayout;
+import android.view.WindowManager;
 import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -45,6 +57,8 @@ import org.json.JSONObject;
 
 import java.nio.channels.NotYetConnectedException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.zip.Inflater;
 
 
 public class MainActivity extends ActionBarActivity
@@ -61,11 +75,13 @@ public class MainActivity extends ActionBarActivity
     private CharSequence mTitle;
 
     private static final String TAG = "MainActivity";
-    private static final int CAMERA_SHOT_ACTIVITY  = 0;
+    private static final int CAMERA_SHOT_ACTIVITY   = 0;
+    private static final int PHOTO_CONFIRM_ACTIVITY = 1;
+    private static final int SETTINGS_ACTIVITY      = 10;
     private static final int PROJECT_LIST_DIALOG = 0;
-    private static final int TARGET_DIALOG = 1;
-    private static final int TARGET_DIALOG_2 = 2;
-    private static final int TARGET_EDIT_DIALOG = 3;
+    private static final int TARGET_DIALOG       = 1;
+    private static final int TARGET_DIALOG_2     = 2;
+    private static final int TARGET_EDIT_DIALOG  = 3;
     private static final int TARGET_DELTE_DIALOG = 4;
 
     private ServiceManager sm = new ServiceManager();
@@ -86,8 +102,22 @@ public class MainActivity extends ActionBarActivity
     ArrayList<String> pjRootTargetList = new ArrayList<String>();
 
 
-    ArrayList<String> parentArray = new ArrayList<String>();
     //SocketIO socket = null;
+    Boolean notSleepEnable = false;
+    private ArrayList<String> path = null;
+
+    // 上部のパンくずリスト用
+    private FragmentBreadCrumbs mFragmentBreadCrumbs;
+    BreadCrumbsFragment fragment;
+
+    FragmentTransaction ft;
+    FragmentManager fm;
+    android.support.v4.app.FragmentManager _fm;
+    android.support.v4.app.FragmentTransaction _ft;
+    private String projectName = null;
+    private String projectId = null;
+    private Boolean firstTargetListUpdate = true;
+    CustomBreadCrumbList _bcl = null;
 
 
     @Override
@@ -129,6 +159,13 @@ public class MainActivity extends ActionBarActivity
                 break;
         }
         */
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
+        notSleepEnable = preferences.getBoolean("not_sleep_enable", false);
+
+        if( notSleepEnable ) {
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        }
+
         Intent intent = new Intent(MainActivity.this, SocketIOService.class);
         ComponentName component = MainActivity.this.startService(intent);
 
@@ -136,6 +173,27 @@ public class MainActivity extends ActionBarActivity
         MainActivity.this.registerReceiver(receiver, filter);
         Boolean bool = MainActivity.this.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
 
+        // 以下、パンくずリスト用
+        // ActionBarの取得
+        //final ActionBar mActionBar = getActionBar();
+        final ActionBar mActionBar = getSupportActionBar();
+
+        // ActionbarにFragmentBreadCrumbsをセット
+        mFragmentBreadCrumbs = new FragmentBreadCrumbs(this);
+        mActionBar.setCustomView(mFragmentBreadCrumbs);
+        mActionBar.setDisplayShowCustomEnabled(true);
+
+        // パンくず表示の為ActionBarのタイトルを非表示に
+        mActionBar.setDisplayShowTitleEnabled(false);
+
+        mFragmentBreadCrumbs.setActivity(this);
+
+        fragment = new BreadCrumbsFragment();
+
+        //android.app.FragmentManager fm = fragment.getChildFragmentManager();
+
+        //ft = getFragmentManager().beginTransaction();
+        //ft = fm.beginTransaction();
 
 
         // 送信ボタン
@@ -188,6 +246,26 @@ public class MainActivity extends ActionBarActivity
 
     }
 
+    private class BreadCrumbsFragment extends android.app.Fragment {
+
+        @Override
+        public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                                 Bundle savedInstanceState) {
+            //container.setId(R.id.container);
+            View v = inflater.inflate(R.layout.fragment_bread_crumbs, container, false);
+            return v;
+        }
+
+    }
+
+    public BreadCrumbsFragment getInstance() {
+        BreadCrumbsFragment f = new BreadCrumbsFragment();
+        Bundle args = new Bundle();
+        args.putInt("position", 0);
+        f.setArguments(args);
+        return f;
+    }
+
     private ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
@@ -200,6 +278,16 @@ public class MainActivity extends ActionBarActivity
             socketio = null;
         }
     };
+
+    private void addFragment(FragmentTransaction ft, BreadCrumbsFragment bf) {
+        // 選択したFragmentを追加する
+        //ft.add(R.id.container, bf);
+        ft.addToBackStack(null);
+
+        // BreadCrumbの名前を追加
+        ft.setBreadCrumbTitle(item.getTargetName());
+        ft.commit();
+    }
 
     // Receiverクラス
     public class ServiceReceiver extends BroadcastReceiver {
@@ -248,12 +336,20 @@ public class MainActivity extends ActionBarActivity
                     final ArrayList<TargetListData> dataList = new ArrayList<TargetListData>();
 
                     try {
-                        if(jArray.getJSONArray(0).length() == 0) {
-                            Toast.makeText(MainActivity.this, "何も登録されていません", Toast.LENGTH_LONG).show();
-                            currentParentId = item.getId();
+                        // TODO: 暫定対応  previousParentとcurrentParentを使って、階層移動を実現しよう
+                        if( jArray.get(0) instanceof JSONObject && jArray.getJSONObject(0).getString("currentParent") != JSONObject.NULL ) {
+                            Log.d(TAG, "暫定対応: currentParentみっけた");
+                            path = new ArrayList<String>();
+                            path.add( jArray.getJSONObject(0).getString("previousParent") );
+                            //currentParentId = jArray.getJSONObject(0).getString("previousParent");
+
+                            // 元のやつ
+                            //if(jArray.getJSONArray(0).length() == 0) {
+                            //    Toast.makeText(MainActivity.this, "何も登録されていません", Toast.LENGTH_LONG).show();
+                            //    currentParentId = item.getId();
                         } else {
                             // JSONArrayはforeach使えない
-                            for (int i = 0; i <= jArray.length(); i++) {
+                            for (int i = 0; i < jArray.getJSONArray(0).length(); i++) {
                                 TargetListData _data = new TargetListData();
                                 _data.setId(jArray.getJSONArray(0).getJSONObject(i).getString("_id"));
                                 _data.setParent(jArray.getJSONArray(0).getJSONObject(i).getString("parent"));
@@ -271,21 +367,38 @@ public class MainActivity extends ActionBarActivity
                                 _data.setLock(jArray.getJSONArray(0).getJSONObject(i).getString("lock"));
                                 dataList.add(_data);
                             }
+                            path = new ArrayList<String>( Arrays.asList( jArray.getJSONArray(0).getJSONObject(0).getString("path").split("#") ) );
                         }
                     } catch (Exception e) {
                         Log.d(TAG, e.toString());
-                    }
-
-                    if( parentArray.size() > 1 && ( parentArray.get( parentArray.size() - 2 ).equals( currentParentId ) ) ) {
-                        parentArray.remove( parentArray.size() - 1 );
-                    } else {
-                        parentArray.add( currentParentId );
                     }
 
                     TargetListAdapter targetListAdapter = new TargetListAdapter(MainActivity.this, 0, dataList);
                     ListView listView = (ListView) MainActivity.this.findViewById(R.id.targetListView);
                     listView.setAdapter( targetListAdapter );
                     targetListAdapter.notifyDataSetChanged();
+
+                    if( firstTargetListUpdate ) {
+                        _bcl = (CustomBreadCrumbList)findViewById(R.id.Select_BreadCrumbList);
+                        _bcl.setOnClickListener(new BreadCrumbList.OnClickListener() {
+                            @Override
+                            public void onClick(View v, int position) {
+                                try {
+                                    JSONArray jArray = new JSONArray();
+                                    JSONObject jObj = new JSONObject();
+                                    jObj.put("parent", _bcl.getTargetIdList().get(position));
+                                    jArray.put(jObj);
+                                    client.emit("getTargetList", jArray);
+                                } catch (Exception e) {
+                                    Log.d(TAG, e.toString());
+                                }
+                            }
+
+                        });
+                        _bcl.push(projectName, projectId);
+                        firstTargetListUpdate = false;
+                    }
+
 
                     listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
                         @Override
@@ -302,6 +415,19 @@ public class MainActivity extends ActionBarActivity
                                     jObj.put("parent", item.getId());
                                     jArray.put(jObj);
                                     client.emit("getTargetList", jArray);
+                                    _bcl.push(item.getTargetName(), item.getId());
+
+                                    /*
+                                    FragmentTransaction ft = MainActivity.this.getFragmentManager().beginTransaction();
+                                    BreadCrumbsFragment bf = new BreadCrumbsFragment();
+
+                                    ft.add(R.id.container, bf);
+                                    ft.addToBackStack(null);
+
+                                    // BreadCrumbの名前を追加
+                                    ft.setBreadCrumbTitle(item.getTargetName());
+                                    ft.commit();
+                                    */
 
                                 } catch (Exception e) {
                                     Log.d(TAG, e.toString());
@@ -328,6 +454,24 @@ public class MainActivity extends ActionBarActivity
 
 
 
+                    break;
+                }
+                case SocketIOService.PHOTO_CONFIRM : {
+                    try {
+                        Intent i = new Intent(MainActivity.this, PhotoConfirm.class);
+                        //i.putExtra("encPhotoData", jArray.getJSONObject(0).getString("encPhotoData"));
+                        PassToOtherActivity pass = (PassToOtherActivity)MainActivity.this.getApplication();
+                        pass.setObj( jArray.getJSONObject(0).getString("encPhotoData") );
+                        dialog.dismiss();
+
+                        MainActivity.this.unregisterReceiver(receiver);
+                        MainActivity.this.unbindService(serviceConnection);
+
+                        startActivityForResult(i, PHOTO_CONFIRM_ACTIVITY);
+
+                    } catch (Exception e) {
+                        Log.d(TAG, e.toString());
+                    }
                     break;
                 }
                 case SocketIOService.DISCONNECTED :{
@@ -397,35 +541,32 @@ public class MainActivity extends ActionBarActivity
 
     }
 
-    private String getCurrentParentId() {
-        if( parentArray.size() > 1 ) {
-            Log.d(TAG, "CurrentParentId -> " + parentArray.get( parentArray.size() - 2 ));
-            return parentArray.get( parentArray.size() - 2 );
-        } else {
-            return parentArray.get( parentArray.size() - 1 );
-        }
-        //Log.d(TAG, "CurrentParentId -> null...");
-        //return null;
-    }
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if(keyCode== KeyEvent.KEYCODE_BACK){
-            if( !getCurrentParentId().equals(null) ) {
+            try {
                 JSONArray jArray = new JSONArray();
                 JSONObject jObj = new JSONObject();
-                try {
-                    jObj.put("parent", getCurrentParentId());
-                    jArray.put(jObj);
-                    client.emit("getTargetList", jArray);
-                    return true;
-                } catch (Exception e) {
-                    Log.d(TAG, e.toString());
-                    finish();
+                int size = path.size();
+                switch ( size ) {
+                    case 1:
+                        //TODO: 終了処理書く
+                        //return false
+                    case 2:
+                        jObj.put("parent", path.get(0));
+                        break;
+                    default :
+                        jObj.put("parent", path.get( path.size() - 3 ));
+                        _bcl.pop();
                 }
+                jArray.put(jObj);
+                client.emit("getTargetList", jArray);
+                return true;
 
-            } else {
-                return false;
+            } catch (Exception e) {
+                Log.d(TAG, e.toString());
+                finish();
             }
         }
         return false;
@@ -438,6 +579,10 @@ public class MainActivity extends ActionBarActivity
         MainActivity.this.unbindService( serviceConnection );
         Intent intent = new Intent(MainActivity.this, SocketIOService.class);
         MainActivity.this.stopService( intent );
+
+        if( notSleepEnable ) {
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        }
         super.onDestroy();
     }
 
@@ -492,6 +637,8 @@ public class MainActivity extends ActionBarActivity
         Log.d(TAG, "OnActivityResult");
 
         switch( requestCode ) {
+            case PHOTO_CONFIRM_ACTIVITY:
+                resultCode = CameraShot.NON_CAMERA_SHOT;
             case CAMERA_SHOT_ACTIVITY :
                 this.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
 
@@ -511,7 +658,6 @@ public class MainActivity extends ActionBarActivity
                             jObj.put("parent", currentParentId);
                             jArray.put(jObj);
                             client.emit("getTargetList", jArray);
-                            parentArray.remove( parentArray.size() - 1 );
                         } catch (Exception e) {
                             Log.d(TAG, e.toString());
                             finish();
@@ -519,7 +665,14 @@ public class MainActivity extends ActionBarActivity
                         break;
                     case CameraShot.NON_CAMERA_SHOT :
                         break;
+                    default:
+                        break;
                 }
+                break;
+
+            case SETTINGS_ACTIVITY:
+                //TODO: 設定画面から戻ってきた時にサービス再起動?
+                //TODO: 送信待ちジョブが存在しないことを確認しないとね
                 break;
         }
         if(requestCode == CAMERA_SHOT_ACTIVITY) {
@@ -548,13 +701,19 @@ public class MainActivity extends ActionBarActivity
             MenuItem addTargetItem = menu.add("TargetAdd");
             MenuItem refleshTargetItem = menu.add("TargetReflesh");
 
-            // SHOW_AS_ACTION_IF_ROOM:余裕があれば表示
-            addTargetItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
-            refleshTargetItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
 
-            // アイコンを設定
-            addTargetItem.setIcon(android.R.drawable.ic_menu_add);
-            refleshTargetItem.setIcon(R.drawable.ic_menu_refresh);
+            // ハニカム未満は振り分けないと落ちる
+            if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
+
+                // SHOW_AS_ACTION_IF_ROOM:余裕があれば表示
+                addTargetItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
+                refleshTargetItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
+
+                // アイコンを設定
+                addTargetItem.setIcon(android.R.drawable.ic_menu_add);
+                refleshTargetItem.setIcon(R.drawable.ic_menu_refresh);
+
+            }
             return true;
         }
 
@@ -569,6 +728,8 @@ public class MainActivity extends ActionBarActivity
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
         if (id == R.id.action_settings) {
+            Intent i = new Intent( MainActivity.this, SettingsActivity.class);
+            startActivityForResult(i, SETTINGS_ACTIVITY);
             return true;
         }
 
@@ -596,13 +757,13 @@ public class MainActivity extends ActionBarActivity
                                     JSONArray jArray = new JSONArray();
                                     JSONObject jObj = new JSONObject();
                                     try {
+                                        String currentParentId = _bcl.getTargetIdList().get(_bcl.size() - 1);
                                         jObj.put("parent", currentParentId);
                                         jObj.put("addTargetName", addTargetName.getText().toString());
                                         jObj.put("addTargetType", addTargetGenre.getSelectedItem().toString());
                                         jObj.put("addTargetBeforeAfter", addTargetBeforeAfter.getSelectedItem().toString());
                                         jArray.put(jObj);
                                         client.emit("addTarget", jArray);
-                                        parentArray.remove( parentArray.size() - 1 );
                                     } catch (Exception e) {
                                         Log.d(TAG, e.toString());
                                     }
@@ -660,8 +821,10 @@ public class MainActivity extends ActionBarActivity
         public View onCreateView(LayoutInflater inflater, ViewGroup container,
                 Bundle savedInstanceState) {
             View rootView = inflater.inflate(R.layout.fragment_main, container, false);
-            TextView textView = (TextView) rootView.findViewById(R.id.section_label);
-            textView.setText(Integer.toString(getArguments().getInt(ARG_SECTION_NUMBER)));
+
+            // 元々、ナビゲーションバーから選んだアイテムの数字を表示させる処理が入ってた
+            //TextView textView = (TextView) rootView.findViewById(R.id.section_label);
+            //textView.setText(Integer.toString(getArguments().getInt(ARG_SECTION_NUMBER)));
             return rootView;
         }
 
@@ -701,12 +864,32 @@ public class MainActivity extends ActionBarActivity
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         Log.d(TAG, pjNameList.get(which) + " Selected");
+                        projectName = pjNameList.get(which);
+                        projectId = pjRootTargetList.get(which);
                         JSONArray jArray = new JSONArray();
                         JSONObject jObj = new JSONObject();
                         try {
-                            jObj.put("parent", pjRootTargetList.get(which));
+                            jObj.put("parent", projectId);
                             jArray.put(jObj);
                             client.emit("getTargetList", jArray);
+
+                            // 以下、パンくずリスト用
+                            // 初期状態を示すBreadCrumbを作成する
+                            mFragmentBreadCrumbs.setParentTitle(pjNameList.get(which), null,
+                                    new View.OnClickListener() {
+                                        @Override
+                                        public void onClick(View v) {
+                                            Toast.makeText(MainActivity.this, "Click ParentTitle",
+                                                    Toast.LENGTH_SHORT).show();
+
+                                            // 初期状態に戻す
+                                            FragmentManager fm = getSupportFragmentManager();
+                                            for (int i = 0; i < fm.getBackStackEntryCount(); i++) {
+                                                fm.popBackStack();
+                                            }
+                                        }
+                                    });
+
                             dialog.dismiss();
 
                         } catch (Exception e) {
@@ -749,7 +932,27 @@ public class MainActivity extends ActionBarActivity
                                 startActivityForResult(i, CAMERA_SHOT_ACTIVITY);
 
                             } else if (switchStr.equals("確認")) {
+                                String savePhotoName = "";
+                                for(LinearLayout item : _bcl.getButtonList()) {
+                                    Button btn = (Button)item.findViewById(1);
+                                    savePhotoName += btn.getText() + "_";
+                                }
+                                savePhotoName += item.getTargetName() + "_" + item.getPhotoBeforeAfter() + "_" + item.getId() + ".jpg";
                                 Toast.makeText( MainActivity.this, switchStr, Toast.LENGTH_LONG).show();
+
+                                JSONArray jArray = new JSONArray();
+                                JSONObject jObj = new JSONObject();
+                                try {
+                                    jObj.put("projectId", projectId);
+                                    jObj.put("savePhotoName", savePhotoName);
+                                    jArray.put(jObj);
+                                    client.emit("photoConfirm", jArray);
+                                    dialog.dismiss();
+
+                                } catch (Exception e) {
+                                    Log.d(TAG, e.toString());
+                                }
+                                Log.d(TAG, "saveName -> " + savePhotoName);
                                 //TODO 画像確認
 
                             } else if (switchStr.equals("編集")) {
@@ -833,7 +1036,6 @@ public class MainActivity extends ActionBarActivity
                                 jObj.put("parent", item.getParent());
                                 jArray.put(jObj);
                                 client.emit("editTarget", jArray);
-                                parentArray.remove( parentArray.size() - 1 );
                             } catch (Exception e) {
                                 Log.d(TAG, e.toString());
                             }
@@ -867,7 +1069,6 @@ public class MainActivity extends ActionBarActivity
                                 jObj.put("parent", item.getParent());
                                 jArray.put(jObj);
                                 client.emit("deleteTarget", jArray);
-                                parentArray.remove( parentArray.size() - 1 );
                             } catch (Exception e) {
                                 Log.d(TAG, e.toString());
                             }

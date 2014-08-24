@@ -2,39 +2,38 @@
 
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical" android:layout_width="match_parent"
-    android:layout_height="match_parent"
+    android:layout_height="72dp"
     android:weightSum="1">
 
     <LinearLayout
         android:orientation="horizontal"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="36dp"
         android:weightSum="1">
 
         <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="45dp"
+            android:layout_width="270dp"
+            android:layout_height="match_parent"
             android:textAppearance="?android:attr/textAppearanceLarge"
             android:text="Large Text"
             android:id="@+id/targetName"
-            android:layout_weight="0.53"
             android:textColor="#000000" />
 
         <ImageView
-            android:layout_width="wrap_content"
-            android:layout_height="48dp"
-            android:id="@+id/checkImage"
-            android:layout_weight="0.40" />
+            android:layout_width="100dp"
+            android:layout_height="40dp"
+            android:id="@+id/checkImage" />
     </LinearLayout>
 
     <LinearLayout
         android:orientation="vertical"
         android:layout_width="fill_parent"
-        android:layout_height="66dp">
+        android:layout_height="36dp">
 
         <TextView
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="18dp"
+            android:textSize="15dp"
             android:textAppearance="?android:attr/textAppearanceMedium"
             android:text="Medium Text"
             android:id="@+id/per1"
@@ -42,10 +41,12 @@
 
         <TextView
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="18dp"
+            android:textSize="15dp"
             android:textAppearance="?android:attr/textAppearanceMedium"
             android:text="Medium Text"
             android:id="@+id/per2"
             android:textColor="#000000" />
     </LinearLayout>
+
 </LinearLayout>

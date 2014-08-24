@@ -14,49 +14,53 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" >
 
-        <Button
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="New Button"
-            android:id="@+id/sendBtn"
-            android:layout_marginTop="140dp"
-            android:layout_below="@+id/section_label"
-            android:layout_centerHorizontal="true"
-            android:layout_gravity="right|bottom" />
-
         <LinearLayout
             android:orientation="vertical"
             android:layout_width="fill_parent"
             android:layout_height="fill_parent"
-            android:layout_gravity="center_horizontal|bottom">
+            android:layout_gravity="center"
+            android:weightSum="1">
 
             <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="match_parent"
+                android:layout_height="60dp"
+                android:textAppearance="?android:attr/textAppearanceLarge"
+                android:text="M T D - C l i e n t "
+                android:id="@+id/title"
+                android:layout_weight="0.15"
+                android:textSize="35dp"
+                android:gravity="center"
+                android:background="@drawable/border_blue"
+                android:textColor="#ffffffff" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
                 android:textAppearance="?android:attr/textAppearanceLarge"
                 android:text="工事長 ログイン"
-                android:id="@+id/textView3" />
+                android:id="@+id/textView3"
+                android:gravity="center"
+                android:background="@drawable/border_gray"
+                android:padding="8dp"
+                android:layout_marginTop="8dp"
+                android:textColor="#ffffffff" />
 
             <LinearLayout
                 android:orientation="horizontal"
                 android:layout_width="fill_parent"
                 android:layout_height="53dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textAppearance="?android:attr/textAppearanceLarge"
-                    android:text="ユーザID"
-                    android:id="@+id/textView" />
-
                 <EditText
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_height="48dp
+                    "
                     android:inputType="textPersonName"
-                    android:text="admin"
+                    android:text="sasaki"
                     android:ems="10"
                     android:id="@+id/userIdTextBox"
-                    android:layout_weight="0.78" />
+                    android:layout_weight="0.78"
+                    android:hint="ユーザID"
+                    android:layout_margin="8dp" />
 
             </LinearLayout>
 
@@ -65,49 +69,36 @@
                 android:layout_width="fill_parent"
                 android:layout_height="70dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textAppearance="?android:attr/textAppearanceLarge"
-                    android:text="パスワード"
-                    android:id="@+id/textView2" />
-
                 <EditText
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_height="48dp"
                     android:inputType="textPassword"
                     android:ems="10"
                     android:id="@+id/passTextBox"
                     android:layout_weight="1"
-                    android:text="hogehoge" />
+                    android:text="sasaki"
+                    android:hint="パスワード"
+                    android:padding="8dp"
+                    android:layout_margin="8dp" />
             </LinearLayout>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textAppearance="?android:attr/textAppearanceLarge"
-                android:text="作業員ログイン"
-                android:id="@+id/textView4"
-                android:singleLine="false" />
 
             <LinearLayout
                 android:orientation="horizontal"
                 android:layout_width="fill_parent"
-                android:layout_height="91dp">
+                android:layout_height="56dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textAppearance="?android:attr/textAppearanceLarge"
-                    android:text="案件ID"
-                    android:id="@+id/textView5" />
-
-                <EditText
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:id="@+id/editText"
-                    android:layout_weight="1" />
             </LinearLayout>
+
+            <Button
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="ログイン"
+                android:id="@+id/sendBtn"
+                android:layout_below="@+id/section_label"
+                android:layout_centerHorizontal="true"
+                android:background="@drawable/custom_button"
+                android:layout_margin="8dp"
+                android:textColor="#ffffffff" />
 
         </LinearLayout>
 

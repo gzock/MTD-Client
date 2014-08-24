@@ -15,14 +15,17 @@ public class SendJobData {
     private String targetId = null;
     private String data = null;
     private String checkSum = null;
+    private String targetName = null;
 
     public void setTargetID ( String str ) { targetId = str; }
     public void setData ( String str ) { data = str; }
     public void setCheckSum ( String str ) { checkSum = str; }
+    public void setTargetName( String str ) { targetName = str; }
 
     public String getTargetId () { return targetId; }
     public String getData () { return  data; }
     public String getCheckSum() { return checkSum; }
+    public String getTargetName() { return targetName; }
 
     public JSONArray getSendaDataJson() {
 
