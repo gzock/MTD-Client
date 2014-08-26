@@ -8,6 +8,7 @@ import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.preference.ListPreference;
 import android.preference.Preference;
 import android.preference.PreferenceActivity;
@@ -16,6 +17,9 @@ import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
 import android.preference.RingtonePreference;
 import android.text.TextUtils;
+import android.util.Log;
+import android.view.View;
+import android.widget.Button;
 
 
 import java.util.List;
@@ -75,9 +79,15 @@ public class SettingsActivity extends PreferenceActivity {
         addPreferencesFromResource(R.xml.pref_reconnect);
 
         fakeHeader = new PreferenceCategory(this);
+        fakeHeader.setTitle(R.string.pref_header_cert_import);
+        getPreferenceScreen().addPreference(fakeHeader);
+        addPreferencesFromResource(R.xml.pref_cert_import);
+
+        fakeHeader = new PreferenceCategory(this);
         fakeHeader.setTitle(R.string.pref_header_other);
         getPreferenceScreen().addPreference(fakeHeader);
         addPreferencesFromResource(R.xml.pref_other);
+
 
         /*
         // Add 'notifications' preferences, and a corresponding header.
@@ -99,8 +109,11 @@ public class SettingsActivity extends PreferenceActivity {
         bindPreferenceSummaryToValue(findPreference("connect_server_ipaddress"));
         bindPreferenceSummaryToValue(findPreference("connect_server_port"));
         bindPreferenceSummaryToValue(findPreference("reconnect_interval"));
+        bindPreferenceSummaryToValue(findPreference("cert_import"));
         //bindPreferenceSummaryToValue(findPreference("notifications_new_message_ringtone"));
         //bindPreferenceSummaryToValue(findPreference("sync_frequency"));
+
+
     }
 
     /** {@inheritDoc} */
@@ -147,6 +160,7 @@ public class SettingsActivity extends PreferenceActivity {
     private static Preference.OnPreferenceChangeListener sBindPreferenceSummaryToValueListener = new Preference.OnPreferenceChangeListener() {
         @Override
         public boolean onPreferenceChange(Preference preference, Object value) {
+            Log.d("hogehoge","hogehoge");
             String stringValue = value.toString();
 
             if (preference instanceof ListPreference) {

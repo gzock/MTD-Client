@@ -17,6 +17,9 @@
         android:title="@string/pref_header_other" />
 
     <header
+        android:fragment="com.example.mtd_client.app.SettingsActivity$NotificationPreferenceFragment"
+        android:title="@string/pref_header_cert_import" />
+    <header
         android:fragment="com.example.mtd_client.app.SettingsActivity$DataSyncPreferenceFragment"
         android:title="@string/pref_header_data_sync" />
 

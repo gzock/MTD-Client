@@ -178,6 +178,7 @@ public class MainActivity extends ActionBarActivity
         //final ActionBar mActionBar = getActionBar();
         final ActionBar mActionBar = getSupportActionBar();
 
+        /*
         // ActionbarにFragmentBreadCrumbsをセット
         mFragmentBreadCrumbs = new FragmentBreadCrumbs(this);
         mActionBar.setCustomView(mFragmentBreadCrumbs);
@@ -195,7 +196,7 @@ public class MainActivity extends ActionBarActivity
         //ft = getFragmentManager().beginTransaction();
         //ft = fm.beginTransaction();
 
-
+*/
         // 送信ボタン
         Button testBtn = (Button) findViewById(R.id.sendBtn);
         testBtn.setOnClickListener(new View.OnClickListener() {
@@ -875,20 +876,23 @@ public class MainActivity extends ActionBarActivity
 
                             // 以下、パンくずリスト用
                             // 初期状態を示すBreadCrumbを作成する
-                            mFragmentBreadCrumbs.setParentTitle(pjNameList.get(which), null,
-                                    new View.OnClickListener() {
-                                        @Override
-                                        public void onClick(View v) {
-                                            Toast.makeText(MainActivity.this, "Click ParentTitle",
-                                                    Toast.LENGTH_SHORT).show();
+                            if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
+                                mFragmentBreadCrumbs.setParentTitle(pjNameList.get(which), null,
+                                        new View.OnClickListener() {
+                                            @Override
+                                            public void onClick(View v) {
+                                                Toast.makeText(MainActivity.this, "Click ParentTitle",
+                                                        Toast.LENGTH_SHORT).show();
 
-                                            // 初期状態に戻す
-                                            FragmentManager fm = getSupportFragmentManager();
-                                            for (int i = 0; i < fm.getBackStackEntryCount(); i++) {
-                                                fm.popBackStack();
+                                                // 初期状態に戻す
+                                                FragmentManager fm = getSupportFragmentManager();
+                                                for (int i = 0; i < fm.getBackStackEntryCount(); i++) {
+                                                    fm.popBackStack();
+                                                }
                                             }
                                         }
-                                    });
+                                );
+                            }
 
                             dialog.dismiss();
 

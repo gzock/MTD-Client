@@ -69,6 +69,8 @@
     <string name="pref_header_other">その他</string>
     <string name="pref_title_not_sleep_enable">スリープ無効</string>
     <string name="pref_body_not_sleep_enable">端末が自動的にスリープ状態になることを抑制します</string>
+    <string name="pref_header_cert_import">証明書インポート</string>
+    <string name="pref_title_cert_import"></string>
 
 
 </resources>

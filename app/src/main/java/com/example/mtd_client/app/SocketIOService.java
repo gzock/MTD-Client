@@ -121,6 +121,7 @@ public class SocketIOService extends Service {
             CertificateFactory cf = CertificateFactory.getInstance("X.509");
 
             InputStream caInput = getResources().openRawResource(R.raw.server);
+
             Certificate ca;
 
             ca = cf.generateCertificate(caInput);
