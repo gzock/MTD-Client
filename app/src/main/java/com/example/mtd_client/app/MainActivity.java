@@ -84,7 +84,6 @@ public class MainActivity extends ActionBarActivity
     private static final int TARGET_EDIT_DIALOG  = 3;
     private static final int TARGET_DELTE_DIALOG = 4;
 
-    private ServiceManager sm = new ServiceManager();
     //private SocketIOServiceManager sIOsm = new SocketIOServiceManager();
 
     private Dialog dialog = null;
@@ -545,7 +544,7 @@ public class MainActivity extends ActionBarActivity
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if(keyCode== KeyEvent.KEYCODE_BACK){
+        if(keyCode == KeyEvent.KEYCODE_BACK){
             try {
                 JSONArray jArray = new JSONArray();
                 JSONObject jObj = new JSONObject();
@@ -696,11 +695,12 @@ public class MainActivity extends ActionBarActivity
             restoreActionBar();
 
             // メニューの要素を追加
-            menu.add("Normal item");
+            //menu.add("Normal item");
 
             // メニューの要素を追加して取得
             MenuItem addTargetItem = menu.add("TargetAdd");
             MenuItem refleshTargetItem = menu.add("TargetReflesh");
+            MenuItem closeApp = menu.add("CloseApp");
 
 
             // ハニカム未満は振り分けないと落ちる
@@ -712,7 +712,11 @@ public class MainActivity extends ActionBarActivity
 
                 // アイコンを設定
                 addTargetItem.setIcon(android.R.drawable.ic_menu_add);
+                addTargetItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
                 refleshTargetItem.setIcon(R.drawable.ic_menu_refresh);
+                refleshTargetItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
+                closeApp.setIcon(R.drawable.power);
+                closeApp.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
 
             }
             return true;
@@ -787,8 +791,11 @@ public class MainActivity extends ActionBarActivity
                 Log.d(TAG, e.toString());
                 finish();
             }
+        } else if(item.getTitle().equals( "CloseApp" )) {
+            this.finish();
+            this.moveTaskToBack(true);
         }
-        Toast.makeText(this, "Selected Item: " + item.getTitle(), Toast.LENGTH_SHORT).show();
+         Toast.makeText(this, "Selected Item: " + item.getTitle(), Toast.LENGTH_SHORT).show();
 
         return super.onOptionsItemSelected(item);
     }

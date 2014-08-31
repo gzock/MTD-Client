@@ -45,7 +45,6 @@ public class TargetListView extends ActionBarActivity {
     private static final int CAMERA_SHOT_ACTIVITY  = 0;
 
     Handler mHandler;
-    private ServiceManager sm = new ServiceManager();
     private SerializableJSONArray targetList = null;
     private ArrayList<TargetListData> dataList = new ArrayList<TargetListData>();
 
@@ -171,7 +170,6 @@ public class TargetListView extends ActionBarActivity {
                             if (switchStr.equals("撮影")) {
                                 Toast.makeText(TargetListView.this, switchStr, Toast.LENGTH_LONG).show();
 
-                                sm.unBindWsService();
                                 Intent i = new Intent(TargetListView.this, CameraShot.class);
                                 i.putExtra("TargetID", item.getId());
                                 i.putExtra("TargetName", item.getTargetName());
@@ -255,7 +253,7 @@ public class TargetListView extends ActionBarActivity {
                                     Log.d(TAG, "Edit Target Name -> " + editTargetName.getText().toString());
                                     Log.d(TAG, "Edit TargetParen ID -> " + item.getParent());
 
-                                    sm.send("editTarget," + item.getId()  + "," + editTargetName.getText().toString() + "," + item.getParent() );
+                                    //sm.send("editTarget," + item.getId()  + "," + editTargetName.getText().toString() + "," + item.getParent() );
                                     dialog.dismiss();
                                 }
                             }
@@ -279,7 +277,7 @@ public class TargetListView extends ActionBarActivity {
                                 public void onClick(DialogInterface dialog, int which) {
                                     Log.d(TAG, "Delete Target ID -> " + item.getId());
                                     Log.d(TAG, "Delete TargetParent -> " + item.getParent());
-                                    sm.send("deleteTarget," + item.getId() + "," + item.getParent());
+                                    //sm.send("deleteTarget," + item.getId() + "," + item.getParent());
                                     dialog.dismiss();
                                 }
                             }
@@ -310,6 +308,7 @@ public class TargetListView extends ActionBarActivity {
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
+        /*
         if(keyCode== KeyEvent.KEYCODE_BACK){
             if( !sm.getCurrentParentId().equals(null) ) {
                 //sm.send("getTargetListUpdate," + previousTargetParentId);
@@ -319,6 +318,7 @@ public class TargetListView extends ActionBarActivity {
                 return false;
             }
         }
+        */
         return false;
     }
 
@@ -329,7 +329,7 @@ public class TargetListView extends ActionBarActivity {
             case CAMERA_SHOT_ACTIVITY :
                 this.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
                 //if(!sm.isWsServiceState()) {
-                    sm.bindWsService(TargetListView.this);
+                    //sm.bindWsService(TargetListView.this);
                 //}
 
                 switch ( resultCode ) {
@@ -406,15 +406,15 @@ public class TargetListView extends ActionBarActivity {
                                     Log.d(TAG, "Add Target Name -> "       + addTargetName.getText().toString());
                                     Log.d(TAG, "Add Target Genre -> "      + addTargetGenre.getSelectedItem().toString());
                                     Log.d(TAG, "Add Target BeforAfter -> " + addTargetBeforeAfter.getSelectedItem().toString());
-                                    sm.send("addTarget," + pjName + "," + previousTargetParentId + "," + addTargetName.getText().toString() + "," +
-                                            addTargetGenre.getSelectedItem().toString() + "," + addTargetBeforeAfter.getSelectedItem().toString());
+                                    //sm.send("addTarget," + pjName + "," + previousTargetParentId + "," + addTargetName.getText().toString() + "," +
+                                    //        addTargetGenre.getSelectedItem().toString() + "," + addTargetBeforeAfter.getSelectedItem().toString());
                                 }
                             }
                     )
                     .setNegativeButton("キャンセル", null)
                     .show();
         } else if(item.getTitle().equals( "TargetReflesh" )) {
-            sm.send("getTargetListUpdate," + sm.getCurrentParentId());
+            //sm.send("getTargetListUpdate," + sm.getCurrentParentId());
         }
         Toast.makeText(this, "Selected Item: " + item.getTitle(), Toast.LENGTH_SHORT).show();
         return super.onOptionsItemSelected(item);
@@ -437,9 +437,9 @@ public class TargetListView extends ActionBarActivity {
         //if(sm.isWsConnected()) {
         //    sm.disConnect();
         //}
-        if(sm.isWsServiceState()) {
-            sm.unBindWsService();
-        }
+        //if(sm.isWsServiceState()) {
+        //    sm.unBindWsService();
+        //}
         //sm.stopWsService();
 
         super.onDestroy();

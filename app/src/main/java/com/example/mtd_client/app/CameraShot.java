@@ -66,7 +66,6 @@ public class CameraShot extends ActionBarActivity {
     private static final String TAG = "CameraShot";
     public static final int CAMERA_SHOT = 0;
     public static final int NON_CAMERA_SHOT = 1;
-    private ServiceManager sm = new ServiceManager();
     private String targetId = null;
     private String targetName = null;
 
@@ -166,6 +165,13 @@ public class CameraShot extends ActionBarActivity {
                     Log.d(TAG, "Camera Open Error");
                     this.finish();
                 }
+
+                //手頃な撮影解像度に設定
+                List<Camera.Size> sizes = mCam.getParameters().getSupportedPictureSizes();
+                Camera.Parameters parameters = mCam.getParameters();
+                parameters.setPictureSize( sizes.get(sizes.size() / 2).width, sizes.get(sizes.size() / 2).height );
+                mCam.setParameters(parameters);
+
                 // FrameLayout に CameraPreview クラスを設定
                 FrameLayout preview = (FrameLayout)findViewById(R.id.cameraPreview);
                 mCamPreview = new CameraPreview(this, mCam);
