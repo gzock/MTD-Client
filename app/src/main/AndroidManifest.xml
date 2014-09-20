@@ -3,7 +3,7 @@
     package="com.example.mtd_client.app" >
 
     <application
-        android:name=".PassToOtherActivity"
+        android:name="com.example.mtd_client.app.PassToOtherActivity"
         android:allowBackup="true"
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
@@ -11,7 +11,6 @@
         android:uiOptions="splitActionBarWhenNarrow" >
         <activity
             android:name="com.example.mtd_client.app.MainActivity"
-            android:finishOnCloseSystemDialogs="true"
             android:configChanges="orientation|keyboardHidden|screenSize"
             android:label="@string/app_name" >
             <intent-filter>
@@ -23,9 +22,12 @@
         <activity
             android:name="com.example.mtd_client.app.TargetListView"
             android:label="@string/title_activity_target_list_view" >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
         </activity>
-
-
         <activity
             android:name="com.example.mtd_client.app.CameraShot"
             android:finishOnCloseSystemDialogs="true"
@@ -46,6 +48,22 @@
             android:name="com.example.mtd_client.app.PhotoConfirm"
             android:finishOnCloseSystemDialogs="true"
             android:label="@string/title_activity_photo_confirm" >
+        </activity>
+        <activity
+            android:name="com.example.mtd_client.app.SendJobDataResult"
+            android:label="@string/title_activity_send_job_data_result" >
+        </activity>
+        <activity
+            android:name="com.example.mtd_client.app.LoginFragment"
+            android:label="@string/title_activity_login" >
+        </activity>
+        <activity
+            android:name="com.example.mtd_client.app.TargetListFragment"
+            android:label="@string/title_activity_target_list_fragment" >
+        </activity>
+        <activity
+            android:name="com.example.mtd_client.app.SendJobDataResultFragment"
+            android:label="@string/title_activity_send_job_data_result_fragment" >
         </activity>
     </application>
 

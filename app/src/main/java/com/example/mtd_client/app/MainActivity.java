@@ -5,7 +5,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.FragmentBreadCrumbs;
-import android.app.FragmentTransaction;
+import android.support.v4.app.FragmentTransaction;
 //import android.support.v4.app.FragmentTransaction;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -62,7 +62,9 @@ import java.util.zip.Inflater;
 
 
 public class MainActivity extends ActionBarActivity
-        implements NavigationDrawerFragment.NavigationDrawerCallbacks {
+        implements NavigationDrawerFragment.NavigationDrawerCallbacks,
+            IRcvDisConnectedListener,
+            IProjectSelectedCallbackListener {
 
     /**
      * Fragment managing the behaviors, interactions and presentation of the navigation drawer.
@@ -84,40 +86,15 @@ public class MainActivity extends ActionBarActivity
     private static final int TARGET_EDIT_DIALOG  = 3;
     private static final int TARGET_DELTE_DIALOG = 4;
 
-    //private SocketIOServiceManager sIOsm = new SocketIOServiceManager();
+    private SocketIOServiceManager sIoSm = new SocketIOServiceManager();
 
     private Dialog dialog = null;
 
-    private TargetListAdapter targetListAdapter = null;
-    private ListView listView = null;
-    TargetListData item = null;
-
-    private SocketIOService socketio            = null;
-    private SocketIOClient client = null;
-
-    private              ServiceReceiver   receiver          =  new ServiceReceiver();
-    private              String            currentParentId   = null;
-    ArrayList<String> pjNameList   = new ArrayList<String>();
-    ArrayList<String> pjRootTargetList = new ArrayList<String>();
-
-
-    //SocketIO socket = null;
     Boolean notSleepEnable = false;
-    private ArrayList<String> path = null;
 
-    // 上部のパンくずリスト用
-    private FragmentBreadCrumbs mFragmentBreadCrumbs;
-    BreadCrumbsFragment fragment;
-
-    FragmentTransaction ft;
-    FragmentManager fm;
-    android.support.v4.app.FragmentManager _fm;
-    android.support.v4.app.FragmentTransaction _ft;
     private String projectName = null;
     private String projectId = null;
-    private Boolean firstTargetListUpdate = true;
-    CustomBreadCrumbList _bcl = null;
-
+    private boolean logined = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -133,31 +110,22 @@ public class MainActivity extends ActionBarActivity
                 R.id.navigation_drawer,
                 (DrawerLayout) findViewById(R.id.drawer_layout));
 
-        //sm.startWsService(MainActivity.this);
-        //sm.bindWsService(MainActivity.this);
-        //sIOsm.startSIOService( MainActivity.this );
-        //sIOsm.bindSIOService( MainActivity.this );
+        Fragment loginFragment = new LoginFragment.PlaceholderFragment();
+        FragmentTransaction ft =  getSupportFragmentManager().beginTransaction();
+        // Layout位置先の指定
+        ft.replace(R.id.container, loginFragment);
+        // Fragmentの変化時のアニメーションを指定
+        ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN);
+        //ft.addToBackStack(null);
+        ft.commit();
 
-        /*
-        Resources resources = getResources();
-        Configuration config = resources.getConfiguration();
-        switch(config.orientation) {
-            case Configuration.ORIENTATION_PORTRAIT:
-                Intent intent = new Intent(MainActivity.this, SocketIOService.class);
-                ComponentName component = MainActivity.this.startService(intent);
 
-                IntentFilter filter = new IntentFilter(SocketIOService.ACTION);
-                MainActivity.this.registerReceiver(receiver, filter);
-                Boolean bool = MainActivity.this.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
+        sIoSm.init();
+        sIoSm.startSIOService( MainActivity.this );
+        sIoSm.bindSIOService( MainActivity.this );
 
-                break;
+        sIoSm.setRcvDisConnectedListener( this );
 
-            case Configuration.ORIENTATION_LANDSCAPE:
-                // 縦向きに固定
-                this.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-                break;
-        }
-        */
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
         notSleepEnable = preferences.getBoolean("not_sleep_enable", false);
 
@@ -165,37 +133,7 @@ public class MainActivity extends ActionBarActivity
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
 
-        Intent intent = new Intent(MainActivity.this, SocketIOService.class);
-        ComponentName component = MainActivity.this.startService(intent);
-
-        IntentFilter filter = new IntentFilter(SocketIOService.ACTION);
-        MainActivity.this.registerReceiver(receiver, filter);
-        Boolean bool = MainActivity.this.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
-
-        // 以下、パンくずリスト用
-        // ActionBarの取得
-        //final ActionBar mActionBar = getActionBar();
-        final ActionBar mActionBar = getSupportActionBar();
-
-        /*
-        // ActionbarにFragmentBreadCrumbsをセット
-        mFragmentBreadCrumbs = new FragmentBreadCrumbs(this);
-        mActionBar.setCustomView(mFragmentBreadCrumbs);
-        mActionBar.setDisplayShowCustomEnabled(true);
-
-        // パンくず表示の為ActionBarのタイトルを非表示に
-        mActionBar.setDisplayShowTitleEnabled(false);
-
-        mFragmentBreadCrumbs.setActivity(this);
-
-        fragment = new BreadCrumbsFragment();
-
-        //android.app.FragmentManager fm = fragment.getChildFragmentManager();
-
-        //ft = getFragmentManager().beginTransaction();
-        //ft = fm.beginTransaction();
-
-*/
+/*
         // 送信ボタン
         Button testBtn = (Button) findViewById(R.id.sendBtn);
         testBtn.setOnClickListener(new View.OnClickListener() {
@@ -204,36 +142,29 @@ public class MainActivity extends ActionBarActivity
                 try {
                     JSONObject json = new JSONObject();
                     json.put("message", "hogehoge");
-                    //socket.emit("message:send", json);
                 } catch (Exception e) {
                     Log.d(TAG, e.toString());
                 }
-                client = socketio.getSocketIOClinet();
-                if( client != null && client.isConnected() ) {
+
+                if(sIoSm.isSIOServiceState()) {
                     try {
                         // 送信
-                        Log.d(TAG, "Send...");
-                        byte[] buf = {0x40, 0x41, 0x42, 0x43, 0x44, 0x45};
-                        //sm.send("hello...?");
 
                         EditText userId = (EditText) findViewById(R.id.userIdTextBox);
                         EditText password = (EditText) findViewById(R.id.passTextBox);
                         Log.d(TAG, "userId -> " + userId.getText());
                         Log.d(TAG, "password -> " + password.getText());
 
-                        String[] strs = {userId.getText().toString(), password.getText().toString()};
-                        //sm.send("login," + userId.getText().toString() + "," + password.getText().toString());
                         JSONArray jArray = new JSONArray();
                         JSONObject jObj = new JSONObject();
                         try {
                             jObj.put("username", userId.getText().toString());
                             jObj.put("password", password.getText().toString());
                             jArray.put(jObj);
-                            client.emit("login", jArray);
+                            sIoSm.emit("login", jArray);
                         } catch (Exception e) {
                             Log.d(TAG, e.toString());
                         }
-                        //client.send(buf);
 
                     } catch (NotYetConnectedException e) {
                         e.printStackTrace();
@@ -243,342 +174,47 @@ public class MainActivity extends ActionBarActivity
                 }
             }
         });
+        */
 
     }
 
-    private class BreadCrumbsFragment extends android.app.Fragment {
+    @Override
+    public void projectSelectedCallback() {
+        // フラグメントのインスタンスを生成する。
+        Fragment newFragment = new TargetListFragment.PlaceholderFragment();
 
-        @Override
-        public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                                 Bundle savedInstanceState) {
-            //container.setId(R.id.container);
-            View v = inflater.inflate(R.layout.fragment_bread_crumbs, container, false);
-            return v;
-        }
-
-    }
-
-    public BreadCrumbsFragment getInstance() {
-        BreadCrumbsFragment f = new BreadCrumbsFragment();
-        Bundle args = new Bundle();
-        args.putInt("position", 0);
-        f.setArguments(args);
-        return f;
-    }
-
-    private ServiceConnection serviceConnection = new ServiceConnection() {
-        @Override
-        public void onServiceConnected(ComponentName name, IBinder service) {
-            socketio = ((SocketIOService.SocketIOBinder)service).getService();
-            client = socketio.getSocketIOClinet();
-        }
-
-        @Override
-        public void onServiceDisconnected(ComponentName name) {
-            socketio = null;
-        }
-    };
-
-    private void addFragment(FragmentTransaction ft, BreadCrumbsFragment bf) {
-        // 選択したFragmentを追加する
-        //ft.add(R.id.container, bf);
-        ft.addToBackStack(null);
-
-        // BreadCrumbの名前を追加
-        ft.setBreadCrumbTitle(item.getTargetName());
+        // ActivityにFragmentを登録する。
+        FragmentTransaction ft =  getSupportFragmentManager().beginTransaction();
+        // Layout位置先の指定
+        ft.replace(R.id.container, newFragment);
+        // Fragmentの変化時のアニメーションを指定
+        ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN);
+        //ft.addToBackStack(null);
         ft.commit();
-    }
 
-    // Receiverクラス
-    public class ServiceReceiver extends BroadcastReceiver {
-
-        @Override
-        public void onReceive(final Context context, Intent intent) {
-
-            int eventSwitchNum = intent.getIntExtra("event", 0);
-            JSONArray jArray = null;
-
-            try {
-                if( (SerializableJSONArray)intent.getSerializableExtra("json") != null ) {
-                    SerializableJSONArray rcvMessage = (SerializableJSONArray)intent.getSerializableExtra("json");
-                    jArray = rcvMessage.getJSONArray();
-                    //Log.d(TAG, jArray.getJSONArray(0).getJSONObject(0).getString("username"))
-                }
-
-            } catch (Exception e) {
-                Log.d(TAG, e.toString());
-            }
-            final ArrayList<String> strList = toArrayStr("aaa,bbb");
-
-            switch ( eventSwitchNum ) {
-                case SocketIOService.PLOJECT_LIST : {
-                    Log.d(TAG, "*** Project List ***");
-                    pjNameList   = new ArrayList<String>();
-                    pjRootTargetList = new ArrayList<String>();
-
-                    try {
-                        // JSONArrayはforeach使えない
-                        for (int i=0; i <= jArray.length(); i++) {
-                            pjNameList.add( jArray.getJSONArray(0).getJSONObject(i).getString("projectName") );
-                            pjRootTargetList.add( jArray.getJSONArray(0).getJSONObject(i).getString("root_target") );
-                        }
-
-                    } catch (Exception e) {
-                        Log.d(TAG, e.toString());
-                    }
-                    showDialog( PROJECT_LIST_DIALOG );
-
-                    break;
-                }
-                case SocketIOService.UPDATE_TARGET_LIST : {
-                    Log.d(TAG, "*** Update Target List ***");
-
-                    final ArrayList<TargetListData> dataList = new ArrayList<TargetListData>();
-
-                    try {
-                        // TODO: 暫定対応  previousParentとcurrentParentを使って、階層移動を実現しよう
-                        if( jArray.get(0) instanceof JSONObject && jArray.getJSONObject(0).getString("currentParent") != JSONObject.NULL ) {
-                            Log.d(TAG, "暫定対応: currentParentみっけた");
-                            path = new ArrayList<String>();
-                            path.add( jArray.getJSONObject(0).getString("previousParent") );
-                            //currentParentId = jArray.getJSONObject(0).getString("previousParent");
-
-                            // 元のやつ
-                            //if(jArray.getJSONArray(0).length() == 0) {
-                            //    Toast.makeText(MainActivity.this, "何も登録されていません", Toast.LENGTH_LONG).show();
-                            //    currentParentId = item.getId();
-                        } else {
-                            // JSONArrayはforeach使えない
-                            for (int i = 0; i < jArray.getJSONArray(0).length(); i++) {
-                                TargetListData _data = new TargetListData();
-                                _data.setId(jArray.getJSONArray(0).getJSONObject(i).getString("_id"));
-                                _data.setParent(jArray.getJSONArray(0).getJSONObject(i).getString("parent"));
-                                if (i == 0) {
-                                    currentParentId = jArray.getJSONArray(0).getJSONObject(i).getString("parent");
-                                }
-                                _data.setTargetName(jArray.getJSONArray(0).getJSONObject(i).getString("target_name"));
-                                _data.setPhotoBeforeAfter(jArray.getJSONArray(0).getJSONObject(i).getString("photo_before_after"));
-                                _data.setPhotoCheck(jArray.getJSONArray(0).getJSONObject(i).getString("photo_check"));
-                                _data.setBfrPhotoShotCnt(jArray.getJSONArray(0).getJSONObject(i).getString("bfr_photo_shot_cnt"));
-                                _data.setBfrPhotoTotalCnt(jArray.getJSONArray(0).getJSONObject(i).getString("bfr_photo_total_cnt"));
-                                _data.setAftPhotoShotCnt(jArray.getJSONArray(0).getJSONObject(i).getString("aft_photo_shot_cnt"));
-                                _data.setAftPhotoTotalCnt(jArray.getJSONArray(0).getJSONObject(i).getString("aft_photo_total_cnt"));
-                                _data.setType(jArray.getJSONArray(0).getJSONObject(i).getString("type"));
-                                _data.setLock(jArray.getJSONArray(0).getJSONObject(i).getString("lock"));
-                                dataList.add(_data);
-                            }
-                            path = new ArrayList<String>( Arrays.asList( jArray.getJSONArray(0).getJSONObject(0).getString("path").split("#") ) );
-                        }
-                    } catch (Exception e) {
-                        Log.d(TAG, e.toString());
-                    }
-
-                    TargetListAdapter targetListAdapter = new TargetListAdapter(MainActivity.this, 0, dataList);
-                    ListView listView = (ListView) MainActivity.this.findViewById(R.id.targetListView);
-                    listView.setAdapter( targetListAdapter );
-                    targetListAdapter.notifyDataSetChanged();
-
-                    if( firstTargetListUpdate ) {
-                        _bcl = (CustomBreadCrumbList)findViewById(R.id.Select_BreadCrumbList);
-                        _bcl.setOnClickListener(new BreadCrumbList.OnClickListener() {
-                            @Override
-                            public void onClick(View v, int position) {
-                                try {
-                                    JSONArray jArray = new JSONArray();
-                                    JSONObject jObj = new JSONObject();
-                                    jObj.put("parent", _bcl.getTargetIdList().get(position));
-                                    jArray.put(jObj);
-                                    client.emit("getTargetList", jArray);
-                                } catch (Exception e) {
-                                    Log.d(TAG, e.toString());
-                                }
-                            }
-
-                        });
-                        _bcl.push(projectName, projectId);
-                        firstTargetListUpdate = false;
-                    }
-
-
-                    listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-                        @Override
-                        public void onItemClick(AdapterView parent, View view, int position, long id) {
-                            ListView listView = (ListView) parent;
-                            item = (TargetListData)listView.getItemAtPosition(position);
-                            client = socketio.getSocketIOClinet();
-
-                            if( item.getType().equals( 0 ) ) {
-                                Log.d(TAG, "isConnected -> " + client.isConnected());
-                                JSONArray jArray = new JSONArray();
-                                JSONObject jObj = new JSONObject();
-                                try {
-                                    jObj.put("parent", item.getId());
-                                    jArray.put(jObj);
-                                    client.emit("getTargetList", jArray);
-                                    _bcl.push(item.getTargetName(), item.getId());
-
-                                    /*
-                                    FragmentTransaction ft = MainActivity.this.getFragmentManager().beginTransaction();
-                                    BreadCrumbsFragment bf = new BreadCrumbsFragment();
-
-                                    ft.add(R.id.container, bf);
-                                    ft.addToBackStack(null);
-
-                                    // BreadCrumbの名前を追加
-                                    ft.setBreadCrumbTitle(item.getTargetName());
-                                    ft.commit();
-                                    */
-
-                                } catch (Exception e) {
-                                    Log.d(TAG, e.toString());
-                                }
-                                Log.d(TAG, "selected -> " + item.getTargetName());
-
-                            } else {
-                                showDialog( TARGET_DIALOG );
-                            }
-                        }
-                    });
-                    listView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
-                        @Override
-                        public boolean onItemLongClick(AdapterView parent, View view, int position, long id) {
-                            ListView listView = (ListView) parent;
-                            item = (TargetListData) listView.getItemAtPosition(position);
-                            if ( item.getType() == 0 ) {
-                                showDialog( TARGET_DIALOG_2 );
-                            }
-                            // trueを返さないと、LongClickのあとに普通のclickが動いてしまう
-                            return true;
-                        }
-                    });
-
-
-
-                    break;
-                }
-                case SocketIOService.PHOTO_CONFIRM : {
-                    try {
-                        Intent i = new Intent(MainActivity.this, PhotoConfirm.class);
-                        //i.putExtra("encPhotoData", jArray.getJSONObject(0).getString("encPhotoData"));
-                        PassToOtherActivity pass = (PassToOtherActivity)MainActivity.this.getApplication();
-                        pass.setObj( jArray.getJSONObject(0).getString("encPhotoData") );
-                        dialog.dismiss();
-
-                        MainActivity.this.unregisterReceiver(receiver);
-                        MainActivity.this.unbindService(serviceConnection);
-
-                        startActivityForResult(i, PHOTO_CONFIRM_ACTIVITY);
-
-                    } catch (Exception e) {
-                        Log.d(TAG, e.toString());
-                    }
-                    break;
-                }
-                case SocketIOService.DISCONNECTED :{
-                    Log.d(TAG, "Socket.IO DisConnected...");
-                    Toast.makeText(MainActivity.this, "Socket.IO DisConnected", Toast.LENGTH_LONG).show();
-                    break;
-                }
-            }
-            /*
-            if( strList.get(0).equals("pjList")) {
-
-            } else if (strList.get(0).equals("tgtList")) {
-
-            } else if(strList.get(0).equals("tgtListUpdate")) {
-
-                final ArrayList<TargetListData> dataList = new ArrayList<TargetListData>();
-                String[] temp = rcvMessage.split(",");
-                for(int i = 1; i < temp.length; i += 11) {
-                    TargetListData _data = new TargetListData();
-                    _data.setId               ( temp[i] );
-                    _data.setParent           ( temp[i + 1] );
-                    if( i == 1 ) { currentParentId = temp[i + 1]; }
-                    _data.setTargetName       ( temp[i + 2] );
-                    _data.setPhotoBeforeAfter ( temp[i + 3] );
-                    _data.setPhotoCheck       ( temp[i + 4] );
-                    _data.setBfrPhotoShotCnt  ( temp[i + 5] );
-                    _data.setBfrPhotoTotalCnt ( temp[i + 6] );
-                    _data.setAftPhotoShotCnt  ( temp[i + 7] );
-                    _data.setAftPhotoTotalCnt ( temp[i + 8] );
-                    _data.setType             ( temp[i + 9] );
-                    _data.setLock             ( temp[i + 10]);
-                    dataList.add              ( _data );
-                }
-                if( parentArray.size() > 1 && ( parentArray.get( parentArray.size() - 2 ).equals( currentParentId ) ) ) {
-                    parentArray.remove( parentArray.size() - 1 );
-                } else {
-                    parentArray.add( currentParentId );
-                }
-                TargetListAdapter targetListAdapter = new TargetListAdapter(_con, 0, dataList);
-                ListView listView = (ListView) _vg.findViewById(R.id.targetListView);
-                listView.setAdapter( targetListAdapter );
-
-            } else if(strList.get(0).equals( "disConnect" )) {
-                Toast.makeText(_con, "WebSocket接続切断...", Toast.LENGTH_LONG).show();
-                Timer mTimer = null;
-                mTimer = new Timer(true);
-                mTimer.schedule( new TimerTask(){
-                    @Override
-                    public void run() {
-                        Log.d(TAG, "WebSocket接続チェック...");
-                        if( !client.isConnected() ) {
-                            Log.d(TAG, "WebSocket未接続のため、再接続を試みる");
-                            //client.connect();
-                        } else {
-                            Toast.makeText(_con, "WebSocket再接続完了", Toast.LENGTH_LONG).show();
-                            this.cancel();
-                        }
-
-                    }
-                }, 5000, 5000);
-            } else if(strList.get(0).equals( "Error")) {
-                Toast.makeText(_con, "WebSocket接続エラー...", Toast.LENGTH_LONG).show();
-            }
-            //((MySample)context).textview01.setText("count: " + counter);
-            */
-        }
-
+        logined = true;
     }
 
 
     @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if(keyCode == KeyEvent.KEYCODE_BACK){
-            try {
-                JSONArray jArray = new JSONArray();
-                JSONObject jObj = new JSONObject();
-                int size = path.size();
-                switch ( size ) {
-                    case 1:
-                        //TODO: 終了処理書く
-                        //return false
-                    case 2:
-                        jObj.put("parent", path.get(0));
-                        break;
-                    default :
-                        jObj.put("parent", path.get( path.size() - 3 ));
-                        _bcl.pop();
-                }
-                jArray.put(jObj);
-                client.emit("getTargetList", jArray);
-                return true;
-
-            } catch (Exception e) {
-                Log.d(TAG, e.toString());
-                finish();
-            }
-        }
-        return false;
+    public void rcvDisConnected() {
+        Log.d(TAG, "Socket.IO DisConnected...");
+        Toast.makeText(MainActivity.this, "Socket.IO DisConnected", Toast.LENGTH_LONG).show();
     }
 
 
+    @Override
+    public void onStop() {
+        super.onStop();
+        sIoSm.disConnected();
+    }
     @Override
     protected void onDestroy() {
-        MainActivity.this.unregisterReceiver( receiver );
-        MainActivity.this.unbindService( serviceConnection );
-        Intent intent = new Intent(MainActivity.this, SocketIOService.class);
-        MainActivity.this.stopService( intent );
+
+        if(sIoSm.isSIOServiceState()) {
+            sIoSm.unBindSIOService();
+            sIoSm.stopSIOService();
+        }
 
         if( notSleepEnable ) {
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -587,16 +223,6 @@ public class MainActivity extends ActionBarActivity
     }
 
 
-    public ArrayList<String> toArrayStr(String message) {
-        String[] strs = message.split(",");
-        ArrayList<String> strList = new ArrayList<String>();
-
-        for(int i = 0; i < strs.length; i++) {
-            strList.add(strs[i]);
-        }
-        return strList;
-    }
-
     @Override
     public void onNavigationDrawerItemSelected(int position) {
         // update the main content by replacing fragments
@@ -604,6 +230,27 @@ public class MainActivity extends ActionBarActivity
         fragmentManager.beginTransaction()
                 .replace(R.id.container, PlaceholderFragment.newInstance(position + 1))
                 .commit();
+
+        int switchNum = position + 1;
+        Log.d(TAG, Integer.toString(switchNum));
+        if(switchNum > 0 && switchNum < 7) {
+            Fragment newFragment = null;
+            switch (switchNum) {
+                case 1:
+                    newFragment = new TargetListFragment.PlaceholderFragment();
+                    break;
+                case 6:
+                    newFragment = new SendJobDataResultFragment.PlaceholderFragment();
+                    break;
+            }
+            FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
+            // Layout位置先の指定
+            ft.replace(R.id.container, newFragment);
+            // Fragmentの変化時のアニメーションを指定
+            ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN);
+            ft.addToBackStack(null);
+            ft.commit();
+        }
     }
 
     public void onSectionAttached(int number) {
@@ -632,58 +279,6 @@ public class MainActivity extends ActionBarActivity
         actionBar.setDisplayShowTitleEnabled(true);
         actionBar.setTitle(mTitle);
     }
-
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        Log.d(TAG, "OnActivityResult");
-
-        switch( requestCode ) {
-            case PHOTO_CONFIRM_ACTIVITY:
-                resultCode = CameraShot.NON_CAMERA_SHOT;
-            case CAMERA_SHOT_ACTIVITY :
-                this.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-
-                Intent intent = new Intent(MainActivity.this, SocketIOService.class);
-                IntentFilter filter = new IntentFilter(SocketIOService.ACTION);
-
-                MainActivity.this.registerReceiver(receiver, filter);
-                MainActivity.this.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
-
-                switch ( resultCode ) {
-                    case CameraShot.CAMERA_SHOT :
-                        client = socketio.getSocketIOClinet();
-                        Log.d(TAG, "CameraShot Result");
-                        JSONArray jArray = new JSONArray();
-                        JSONObject jObj = new JSONObject();
-                        try {
-                            jObj.put("parent", currentParentId);
-                            jArray.put(jObj);
-                            client.emit("getTargetList", jArray);
-                        } catch (Exception e) {
-                            Log.d(TAG, e.toString());
-                            finish();
-                        }
-                        break;
-                    case CameraShot.NON_CAMERA_SHOT :
-                        break;
-                    default:
-                        break;
-                }
-                break;
-
-            case SETTINGS_ACTIVITY:
-                //TODO: 設定画面から戻ってきた時にサービス再起動?
-                //TODO: 送信待ちジョブが存在しないことを確認しないとね
-                break;
-        }
-        if(requestCode == CAMERA_SHOT_ACTIVITY) {
-            if(resultCode == 1 ){
-
-            }
-        }
-
-        super.onActivityResult(requestCode, resultCode, data);
-    }
-
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -717,7 +312,6 @@ public class MainActivity extends ActionBarActivity
                 refleshTargetItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
                 closeApp.setIcon(R.drawable.power);
                 closeApp.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
-
             }
             return true;
         }
@@ -738,15 +332,15 @@ public class MainActivity extends ActionBarActivity
             return true;
         }
 
-        if(item.getTitle().equals( "TargetAdd" )) {
-            client = socketio.getSocketIOClinet();
-            LayoutInflater inflater = LayoutInflater.from(MainActivity.this);
+        if(logined && item.getTitle().equals( "TargetAdd" )) {
+            //client = socketio.getSocketIOClinet();
+            LayoutInflater inflater = LayoutInflater.from(this);
             View view = inflater.inflate(R.layout.add_target_dialog, null);
             final EditText addTargetName = (EditText)view.findViewById(R.id.add_target_name);
             final Spinner addTargetGenre = (Spinner)view.findViewById(R.id.add_target_genre_spinner);
             final Spinner addTargetBeforeAfter = (Spinner)view.findViewById(R.id.add_target_before_after_spinner);
 
-            new AlertDialog.Builder(MainActivity.this)
+            new AlertDialog.Builder(this)
                     .setTitle("項目の追加")
                     .setView(view)
                     .setPositiveButton(
@@ -759,6 +353,9 @@ public class MainActivity extends ActionBarActivity
                                     Log.d(TAG, "Add Target Genre -> "      + addTargetGenre.getSelectedItem().toString());
                                     Log.d(TAG, "Add Target BeforAfter -> " + addTargetBeforeAfter.getSelectedItem().toString());
 
+                                    Fragment f = getSupportFragmentManager().findFragmentById(R.id.container);
+                                    CustomBreadCrumbList _bcl = (CustomBreadCrumbList)f.getView().findViewById(R.id.Select_BreadCrumbList);
+
                                     JSONArray jArray = new JSONArray();
                                     JSONObject jObj = new JSONObject();
                                     try {
@@ -768,7 +365,7 @@ public class MainActivity extends ActionBarActivity
                                         jObj.put("addTargetType", addTargetGenre.getSelectedItem().toString());
                                         jObj.put("addTargetBeforeAfter", addTargetBeforeAfter.getSelectedItem().toString());
                                         jArray.put(jObj);
-                                        client.emit("addTarget", jArray);
+                                        sIoSm.emit("addTarget", jArray);
                                     } catch (Exception e) {
                                         Log.d(TAG, e.toString());
                                     }
@@ -779,23 +376,29 @@ public class MainActivity extends ActionBarActivity
                     )
                     .setNegativeButton("キャンセル", null)
                     .show();
-        } else if(item.getTitle().equals( "TargetReflesh" )) {
+        } else if( logined && item.getTitle().equals( "TargetReflesh" )) {
             JSONArray jArray = new JSONArray();
             JSONObject jObj = new JSONObject();
             try {
+                //TODO: 更新処理、修正必須
+                Fragment f = getSupportFragmentManager().findFragmentById(R.id.container);
+                CustomBreadCrumbList _bcl = (CustomBreadCrumbList)f.getView().findViewById(R.id.Select_BreadCrumbList);
+                String currentParentId = _bcl.getTargetIdList().get(_bcl.size() - 1);
                 jObj.put("parent", currentParentId);
                 jArray.put(jObj);
-                client.emit("getTargetList", jArray);
+                sIoSm.emit("getTargetList", jArray);
                 return true;
             } catch (Exception e) {
                 Log.d(TAG, e.toString());
                 finish();
             }
         } else if(item.getTitle().equals( "CloseApp" )) {
-            this.finish();
-            this.moveTaskToBack(true);
+            finish();
+            //moveTaskToBack(true);
+
+        } else if(!logined) {
+            Toast.makeText(MainActivity.this, "この操作はログイン後にしか行えません", Toast.LENGTH_SHORT).show();
         }
-         Toast.makeText(this, "Selected Item: " + item.getTitle(), Toast.LENGTH_SHORT).show();
 
         return super.onOptionsItemSelected(item);
     }
@@ -854,12 +457,16 @@ public class MainActivity extends ActionBarActivity
     @Override
     protected Dialog onCreateDialog(int id) {
         dialog = super.onCreateDialog(id);
-        client = socketio.getSocketIOClinet();
+//        client = socketio.getSocketIOClinet();
 
 
         //idは何個かダイアログがある場合に使う
         // ここはswitch使わないほうがいい
         if( id == PROJECT_LIST_DIALOG) {
+            final ArrayList<String> pjNameList = sIoSm.getPjNameList();
+            final ArrayList<String> pjRootTargetList = sIoSm.getPjRootTargetList();
+            //pjNameList = sIoSm.getPjNameList();
+
             AlertDialog.Builder dialogBuilder = new AlertDialog.Builder( MainActivity.this );
             dialogBuilder.setTitle("案件名を選択して下さい");
 
@@ -871,43 +478,15 @@ public class MainActivity extends ActionBarActivity
                 new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
+                        sIoSm.unBindSIOService();
                         Log.d(TAG, pjNameList.get(which) + " Selected");
                         projectName = pjNameList.get(which);
                         projectId = pjRootTargetList.get(which);
-                        JSONArray jArray = new JSONArray();
-                        JSONObject jObj = new JSONObject();
-                        try {
-                            jObj.put("parent", projectId);
-                            jArray.put(jObj);
-                            client.emit("getTargetList", jArray);
 
-                            // 以下、パンくずリスト用
-                            // 初期状態を示すBreadCrumbを作成する
-                            if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
-                                mFragmentBreadCrumbs.setParentTitle(pjNameList.get(which), null,
-                                        new View.OnClickListener() {
-                                            @Override
-                                            public void onClick(View v) {
-                                                Toast.makeText(MainActivity.this, "Click ParentTitle",
-                                                        Toast.LENGTH_SHORT).show();
-
-                                                // 初期状態に戻す
-                                                FragmentManager fm = getSupportFragmentManager();
-                                                for (int i = 0; i < fm.getBackStackEntryCount(); i++) {
-                                                    fm.popBackStack();
-                                                }
-                                            }
-                                        }
-                                );
-                            }
-
-                            dialog.dismiss();
-
-                        } catch (Exception e) {
-                            Log.d(TAG, e.toString());
-                        }
-                        //selectedPj = strList.get(which);
-                        MainActivity.this.setContentView(R.layout.activity_target_list_view);
+                        Intent intent = new Intent(MainActivity.this, TargetListView.class);
+                        intent.putExtra("rootTargetId", projectId);
+                        intent.putExtra("rootTargetName", projectName);
+                        startActivity(intent);
 
                     }
                 }
@@ -915,188 +494,98 @@ public class MainActivity extends ActionBarActivity
             dialogBuilder.setPositiveButton("OK", null);
             dialog = dialogBuilder.create();
 
-        } else if ( id == TARGET_DIALOG ) {
-            final CharSequence[] chars = {"撮影", "確認", "編集", "削除"};
-
-            //showDialogを呼ぶときに１度だけ呼ばれる
-            AlertDialog.Builder dialogBuilder = new AlertDialog.Builder( MainActivity.this );
-            dialogBuilder.setTitle("操作を選択して下さい");
-            dialogBuilder.setSingleChoiceItems(
-                    chars,
-                    0, // Initial
-                    new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int which) {
-                            String switchStr = chars[which].toString();
-
-                            if (switchStr.equals("撮影")) {
-                                Toast.makeText( MainActivity.this, switchStr, Toast.LENGTH_LONG).show();
-
-                                Intent i = new Intent( MainActivity.this, CameraShot.class);
-                                i.putExtra("TargetID", item.getId());
-                                i.putExtra("TargetName", item.getTargetName());
-                                dialog.dismiss();
-
-                                MainActivity.this.unregisterReceiver( receiver );
-                                MainActivity.this.unbindService(serviceConnection);
-
-                                startActivityForResult(i, CAMERA_SHOT_ACTIVITY);
-
-                            } else if (switchStr.equals("確認")) {
-                                String savePhotoName = "";
-                                for(LinearLayout item : _bcl.getButtonList()) {
-                                    Button btn = (Button)item.findViewById(1);
-                                    savePhotoName += btn.getText() + "_";
-                                }
-                                savePhotoName += item.getTargetName() + "_" + item.getPhotoBeforeAfter() + "_" + item.getId() + ".jpg";
-                                Toast.makeText( MainActivity.this, switchStr, Toast.LENGTH_LONG).show();
-
-                                JSONArray jArray = new JSONArray();
-                                JSONObject jObj = new JSONObject();
-                                try {
-                                    jObj.put("projectId", projectId);
-                                    jObj.put("savePhotoName", savePhotoName);
-                                    jArray.put(jObj);
-                                    client.emit("photoConfirm", jArray);
-                                    dialog.dismiss();
-
-                                } catch (Exception e) {
-                                    Log.d(TAG, e.toString());
-                                }
-                                Log.d(TAG, "saveName -> " + savePhotoName);
-                                //TODO 画像確認
-
-                            } else if (switchStr.equals("編集")) {
-                                Toast.makeText( MainActivity.this, switchStr, Toast.LENGTH_LONG).show();
-                                showDialog( TARGET_EDIT_DIALOG );
-
-                            } else if (switchStr.equals("削除")) {
-                                Toast.makeText( MainActivity.this, switchStr, Toast.LENGTH_LONG).show();
-                                showDialog( TARGET_DELTE_DIALOG );
-                            }
-                        }
-                    }
-            );
-            dialogBuilder.setNegativeButton("キャンセル", new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    dialog.dismiss();
-                }
-            });
-            dialog = dialogBuilder.create();
-
-        } else if( id == TARGET_DIALOG_2 ) {
-            final CharSequence[] chars = {"編集", "削除"};
-
-            //showDialogを呼ぶときに１度だけ呼ばれる
-            AlertDialog.Builder dialogBuilder = new AlertDialog.Builder( MainActivity.this );
-            dialogBuilder.setTitle("操作を選択して下さい");
-            dialogBuilder.setSingleChoiceItems(
-                    chars,
-                    0, // Initial
-                    new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int which) {
-                            String switchStr = chars[which].toString();
-
-                            if (switchStr.equals("編集")) {
-                                Toast.makeText( MainActivity.this, switchStr, Toast.LENGTH_LONG).show();
-                                showDialog( TARGET_EDIT_DIALOG );
-
-                            } else if (switchStr.equals("削除")) {
-                                Toast.makeText( MainActivity.this, switchStr, Toast.LENGTH_LONG).show();
-                                showDialog( TARGET_DELTE_DIALOG );
-                            }
-                        }
-                    }
-            );
-            dialogBuilder.setNegativeButton("キャンセル", new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    dialog.dismiss();
-                }
-            });
-            dialog = dialogBuilder.create();
-
-        } else if( id == TARGET_EDIT_DIALOG ) {
-            //showDialogを呼ぶときに１度だけ呼ばれる
-            AlertDialog.Builder dialogBuilder = new AlertDialog.Builder( MainActivity.this );
-
-            LayoutInflater inflater = LayoutInflater.from( MainActivity.this );
-            View view = inflater.inflate(R.layout.edit_target_dialog, null);
-            final EditText editTargetName = (EditText) view.findViewById(R.id.edit_target_name);
-            editTargetName.setText(item.getTargetName());
-
-            dialogBuilder.setTitle("項目の編集");
-            dialogBuilder.setView(view);
-            dialogBuilder.setPositiveButton(
-                    "決定",
-                    new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int which) {
-                            //Log.d(TAG, "ProjectName -> " + pjName);
-                            Log.d(TAG, "Edit Target ID -> " + item.getId());
-                            Log.d(TAG, "Edit Target Name -> " + editTargetName.getText().toString());
-                            Log.d(TAG, "Edit TargetParen ID -> " + item.getParent());
-
-                            JSONArray jArray = new JSONArray();
-                            JSONObject jObj = new JSONObject();
-                            try {
-                                jObj.put("id", item.getId());
-                                jObj.put("target_name", editTargetName.getText().toString());
-                                jObj.put("parent", item.getParent());
-                                jArray.put(jObj);
-                                client.emit("editTarget", jArray);
-                            } catch (Exception e) {
-                                Log.d(TAG, e.toString());
-                            }
-                            dialog.dismiss();
-                        }
-                    }
-            );
-            dialogBuilder.setNegativeButton("キャンセル", new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    dialog.dismiss();
-                }
-            });
-            dialog = dialogBuilder.create();
-
-        } else if( id == TARGET_DELTE_DIALOG ) {
-            AlertDialog.Builder dialogBuilder = new AlertDialog.Builder( MainActivity.this );
-            dialogBuilder.setTitle("項目の削除");
-            dialogBuilder.setMessage(item.getTargetName() + "を削除しますか? \n対象配下に機器や建物が存在する場合は、それらも削除されてしまいますので、ご注意下さい");
-            dialogBuilder.setPositiveButton(
-                    "決定",
-                    new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int which) {
-                            Log.d(TAG, "Delete Target ID -> " + item.getId());
-                            Log.d(TAG, "Delete TargetParent -> " + item.getParent());
-                            JSONArray jArray = new JSONArray();
-                            JSONObject jObj = new JSONObject();
-                            try {
-                                jObj.put("id", item.getId());
-                                jObj.put("parent", item.getParent());
-                                jArray.put(jObj);
-                                client.emit("deleteTarget", jArray);
-                            } catch (Exception e) {
-                                Log.d(TAG, e.toString());
-                            }
-                            dialog.dismiss();
-                        }
-                    }
-            );
-            dialogBuilder.setNegativeButton("キャンセル", new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    dialog.dismiss();
-                }
-            });
-            dialog = dialogBuilder.create();
         }
 
         return dialog;
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if(keyCode == KeyEvent.KEYCODE_BACK){
+            ArrayList<String> path = sIoSm.getTargetPath();
+            try {
+                JSONArray jArray = new JSONArray();
+                JSONObject jObj = new JSONObject();
+                int size = path.size();
+                switch ( size ) {
+                    case 1:
+                        Toast.makeText(MainActivity.this, "階層トップです",Toast.LENGTH_SHORT).show();
+                        if(sIoSm != null && sIoSm.isSIOServiceState()) {
+                            sIoSm.unBindSIOService();
+                            sIoSm.stopSIOService();
+                            finish();
+                        }
+                        //TODO: 終了処理書く
+                        //return false
+                    case 2:
+                        jObj.put("parent", path.get(0));
+                        break;
+                    default :
+                        jObj.put("parent", path.get( path.size() - 3 ));
+                        Fragment f = getSupportFragmentManager().findFragmentById(R.id.container);
+                        CustomBreadCrumbList _bcl = (CustomBreadCrumbList)f.getView().findViewById(R.id.Select_BreadCrumbList);
+                        _bcl.pop();
+                }
+                jArray.put(jObj);
+                sIoSm.emit("getTargetList", jArray);
+                return true;
+
+            } catch (Exception e) {
+                Log.d(TAG, e.toString());
+                finish();
+            }
+        }
+        return false;
+    }
+
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        Log.d(TAG, "OnActivityResult");
+
+        switch( requestCode ) {
+            case PHOTO_CONFIRM_ACTIVITY:
+                resultCode = CameraShot.NON_CAMERA_SHOT;
+            case CAMERA_SHOT_ACTIVITY :
+                this.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+
+                sIoSm.bindSIOService( this );
+
+                switch ( resultCode ) {
+                    case CameraShot.CAMERA_SHOT :
+                        Log.d(TAG, "CameraShot Result");
+                        JSONArray jArray = new JSONArray();
+                        JSONObject jObj = new JSONObject();
+                        try {
+                            Fragment f = getSupportFragmentManager().findFragmentById(R.id.container);
+                            CustomBreadCrumbList _bcl = (CustomBreadCrumbList)f.getView().findViewById(R.id.Select_BreadCrumbList);
+                            String currentParentId = _bcl.getTargetIdList().get(_bcl.size() - 1);
+                            jObj.put("parent", currentParentId);
+                            jArray.put(jObj);
+                            sIoSm.emit("getTargetList", jArray);
+                        } catch (Exception e) {
+                            Log.d(TAG, e.toString());
+                            finish();
+                        }
+                        break;
+                    case CameraShot.NON_CAMERA_SHOT :
+                        sIoSm.bindSIOService( this );
+                        break;
+                    default:
+                        break;
+                }
+                break;
+
+            case SETTINGS_ACTIVITY:
+                //TODO: 設定画面から戻ってきた時にサービス再起動?
+                //TODO: 送信待ちジョブが存在しないことを確認しないとね
+                break;
+        }
+        if(requestCode == CAMERA_SHOT_ACTIVITY) {
+            if(resultCode == 1 ){
+
+            }
+        }
+
+        super.onActivityResult(requestCode, resultCode, data);
     }
 
 

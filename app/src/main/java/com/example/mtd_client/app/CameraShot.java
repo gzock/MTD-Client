@@ -72,11 +72,13 @@ public class CameraShot extends ActionBarActivity {
     private boolean shotFlag = false;
     private SocketIOService socketio            = null;
     private SocketIOClient client = null;
-    private              ServiceReceiver   receiver          =  new ServiceReceiver();
     private byte[] photoDataHolder = null;
 
     private Dialog dialog = null;
     private final int CAMERA_PARAM_SETTINGS = 0;
+
+    private SocketIOServiceManager sIoSm = new SocketIOServiceManager();
+
 
 
     @Override
@@ -91,9 +93,6 @@ public class CameraShot extends ActionBarActivity {
         requestWindowFeature(Window.FEATURE_NO_TITLE);
 
         setContentView(R.layout.activity_camera_shot);
-
-
-
 
         Bundle extras;
         extras = getIntent().getExtras();
@@ -120,11 +119,8 @@ public class CameraShot extends ActionBarActivity {
 
             case Configuration.ORIENTATION_LANDSCAPE:
 
-                //sm.bindWsService(CameraShot.this);
-                Intent intent = new Intent(CameraShot.this, SocketIOService.class);
-                IntentFilter filter = new IntentFilter(SocketIOService.ACTION);
-                CameraShot.this.registerReceiver(receiver, filter);
-                Boolean bool = CameraShot.this.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
+                sIoSm.bindSIOService( this );
+
                 // カメラインスタンスの取得
                 try {
                     mCam = Camera.open();
@@ -264,18 +260,6 @@ public class CameraShot extends ActionBarActivity {
 
     }
 
-    private ServiceConnection serviceConnection = new ServiceConnection() {
-        @Override
-        public void onServiceConnected(ComponentName name, IBinder service) {
-            socketio = ((SocketIOService.SocketIOBinder)service).getService();
-            client = socketio.getSocketIOClinet();
-        }
-
-        @Override
-        public void onServiceDisconnected(ComponentName name) {
-            socketio = null;
-        }
-    };
 
 
     private void submitFocusAreaRect(final Rect touchRect)
@@ -366,7 +350,7 @@ public class CameraShot extends ActionBarActivity {
         sendJobData.setCheckSum( checkSum );
         sendJobData.setTargetName( targetName );
 
-        socketio.addSendJob( sendJobData );
+        sIoSm.getSocketio().addSendJob( sendJobData );
             /*
             JSONArray jArray = new JSONArray();
             JSONObject jObj = new JSONObject();
@@ -401,8 +385,7 @@ public class CameraShot extends ActionBarActivity {
         mIsTake = false;
         CameraShot.this.setResult(CAMERA_SHOT);
         //mCam.release();
-        CameraShot.this.unregisterReceiver( receiver );
-        CameraShot.this.unbindService( serviceConnection );
+        sIoSm.unBindSIOService();
         CameraShot.this.finish();
     }
 
@@ -411,24 +394,13 @@ public class CameraShot extends ActionBarActivity {
         if(keyCode== KeyEvent.KEYCODE_BACK){
 
             // 戻るボタン押されたということは、画像の採用が行われていない
-            CameraShot.this.unregisterReceiver( receiver );
-            CameraShot.this.unbindService( serviceConnection );
+            sIoSm.unBindSIOService();
 
             CameraShot.this.setResult(NON_CAMERA_SHOT);
             CameraShot.this.finish();
 
         }
         return false;
-    }
-
-    // Receiverクラス
-    public class ServiceReceiver extends BroadcastReceiver {
-
-        @Override
-        public void onReceive(final Context context, Intent intent) {
-
-        }
-
     }
 
 
@@ -457,6 +429,7 @@ public class CameraShot extends ActionBarActivity {
 
         //CameraShot.this.unregisterReceiver( receiver );
         //CameraShot.this.unbindService( serviceConnection );
+        sIoSm.unBindSIOService();
         super.onDestroy();
     }
 
@@ -513,6 +486,7 @@ public class CameraShot extends ActionBarActivity {
                         }
                     }
             );
+
             dialogBuilder.setPositiveButton("OK", null);
             dialog = dialogBuilder.create();
         }

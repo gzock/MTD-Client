@@ -10,9 +10,13 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.os.IBinder;
+import android.support.v7.internal.widget.ActivityChooserModel;
+import android.util.AttributeSet;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.Toast;
 
@@ -28,19 +32,20 @@ import org.json.JSONObject;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Timer;
 import java.util.TimerTask;
 
 /**
  * Created by Gzock on 2014/06/01.
  */
-public class SocketIOServiceManager {
+public class SocketIOServiceManager{
 
     private ServiceConnection serviceConnection = null;
     private              ServiceReceiver   receiver          = null;
     private static final String            TAG               = "SocketIOServiceManager";
     private Context _con               = null;
-    private SocketIOService socketio            = null;
+    private SocketIOService socketio = null;
     private SocketIOClient client = null;
     private Intent intent            = null;
     private              String            selectedPj        = null;
@@ -49,23 +54,56 @@ public class SocketIOServiceManager {
     private              String            currentParentId   = null;
 
     ArrayList<String> parentArray = new ArrayList<String>();
+    ArrayList<String> pjNameList   = new ArrayList<String>();
+    ArrayList<String> pjRootTargetList = new ArrayList<String>();
+    private ArrayList<String> path = null;
+
+    private IRcvTargetListListener mTargetListListener = null;
+    private IRcvProjectListListener mProjectListListener = null;
+    private IRcvPhotoConfirmListener mPhotoConfirmListener = null;
+    private IRcvDisConnectedListener mDisConnectedListener = null;
+
+    private ArrayList<TargetListData> mDataList = new ArrayList<TargetListData>();
+    private String mEncPhotoData = null;
+    private Activity mActivity = null;
+    private IServiceConnectedCallbackListener mServiceConnectedCallback = null;
+
 
     public SocketIOServiceManager() {
+
+    }
+
+    public void init() {
         // ServiceConnectionの用意
         serviceConnection = new ServiceConnection() {
             @Override
             public void onServiceConnected(ComponentName name, IBinder service) {
-                socketio = ((SocketIOService.SocketIOBinder)service).getService();
-                client = socketio.getSocketIOClinet();
+                //socketio = ((SocketIOService.SocketIOBinder)service).getService();
+                setSocketio(((SocketIOService.SocketIOBinder)service).getService());
+                //client = socketio.getSocketIOClinet();
+                if(mServiceConnectedCallback != null) {
+                    mServiceConnectedCallback.serviceConnectedCallback();
+                }
             }
 
             @Override
             public void onServiceDisconnected(ComponentName name) {
-                socketio = null;
+                //socketio = null;
             }
         };
         receiver = new ServiceReceiver();
+    }
 
+    public void setCallback(IServiceConnectedCallbackListener _mServiceConnectedCallback) {
+        mServiceConnectedCallback = _mServiceConnectedCallback;
+    }
+
+    private void setSocketio( SocketIOService sio) {
+        socketio = sio;
+    }
+
+    public SocketIOService getSocketio() {
+        return socketio;
     }
 
     public void startSIOService(Context context) {
@@ -123,7 +161,9 @@ public class SocketIOServiceManager {
 
     public void emit(String str, JSONArray jArray) {
         try {
-            client.emit(str, jArray);
+            Log.d(TAG, "ここまで");
+            socketio.getSocketIOClinet().emit(str, jArray);
+            //client.emit(str, jArray);
             Log.d(TAG, "emit name -> " + str + "JSONArray -> " + jArray);
         } catch (Exception e) {
             Log.d(TAG, e.toString());
@@ -140,7 +180,7 @@ public class SocketIOServiceManager {
         }
     }
 
-    public void stopWsService() {
+    public void stopSIOService() {
         _con.stopService(intent);
     }
 
@@ -154,9 +194,11 @@ public class SocketIOServiceManager {
             JSONArray jArray = null;
 
             try {
-                SerializableJSONArray rcvMessage = (SerializableJSONArray)intent.getSerializableExtra("json");
-                jArray = rcvMessage.getJSONArray();
-                //Log.d(TAG, jArray.getJSONArray(0).getJSONObject(0).getString("username"));
+                if( (SerializableJSONArray)intent.getSerializableExtra("json") != null ) {
+                    SerializableJSONArray rcvMessage = (SerializableJSONArray)intent.getSerializableExtra("json");
+                    jArray = rcvMessage.getJSONArray();
+                    //Log.d(TAG, jArray.getJSONArray(0).getJSONObject(0).getString("username"))
+                }
 
             } catch (Exception e) {
                 Log.d(TAG, e.toString());
@@ -166,8 +208,8 @@ public class SocketIOServiceManager {
             switch ( eventSwitchNum ) {
                 case SocketIOService.PLOJECT_LIST : {
                     Log.d(TAG, "*** Project List ***");
-                    final ArrayList<String> pjNameList   = new ArrayList<String>();
-                    final ArrayList<String> pjRootTargetList = new ArrayList<String>();
+                    pjNameList   = new ArrayList<String>();
+                    pjRootTargetList = new ArrayList<String>();
 
                     try {
                         // JSONArrayはforeach使えない
@@ -180,141 +222,152 @@ public class SocketIOServiceManager {
                         Log.d(TAG, e.toString());
                     }
 
-                    final CharSequence[] chars = pjNameList.toArray(new CharSequence[pjNameList.size()]);
-                    new AlertDialog.Builder(context)
-                        .setTitle("案件名を選択して下さい")
-                        .setSingleChoiceItems(
-                                chars,
-                                0, // Initial
-                                new DialogInterface.OnClickListener() {
-                                    @Override
-                                    public void onClick(DialogInterface dialog, int which) {
-                                        Log.d(TAG, pjNameList.get(which) + " Selected");
-                                        JSONArray jArray = new JSONArray();
-                                        JSONObject jObj = new JSONObject();
-                                        try {
-                                            jObj.put("parent", pjRootTargetList.get(which));
-                                            jArray.put(jObj);
-                                            client.emit("getTargetList", jArray);
-
-                                        } catch (Exception e) {
-                                            Log.d(TAG, e.toString());
-                                        }
-                                        selectedPj = strList.get(which);
-                                       ((Activity)_con).setContentView(R.layout.activity_target_list_view);
-
-                                    }
-                                }
-                        )
-                        .setPositiveButton("OK", null)
-                        .show();
+                    if(mProjectListListener != null) {
+                        mProjectListListener.rcvProjectList();
+                    }
                     break;
                 }
                 case SocketIOService.UPDATE_TARGET_LIST : {
                     Log.d(TAG, "*** Update Target List ***");
 
-                    final ArrayList<TargetListData> dataList = new ArrayList<TargetListData>();
-
                     try {
-                        // JSONArrayはforeach使えない
-                        for (int i = 0; i <= jArray.length(); i++) {
-                            TargetListData _data = new TargetListData();
-                            _data.setId               ( jArray.getJSONArray(0).getJSONObject(i).getString("_id") );
-                            _data.setParent           ( jArray.getJSONArray(0).getJSONObject(i).getString("parent") );
-                            //if( i == 1 ) { currentParentId = temp[i + 1]; }
-                            _data.setTargetName       ( jArray.getJSONArray(0).getJSONObject(i).getString("target_name") );
-                            _data.setPhotoBeforeAfter ( jArray.getJSONArray(0).getJSONObject(i).getString("photo_before_after") );
-                            _data.setPhotoCheck       ( jArray.getJSONArray(0).getJSONObject(i).getString("photo_check") );
-                            _data.setBfrPhotoShotCnt  ( jArray.getJSONArray(0).getJSONObject(i).getString("bfr_photo_shot_cnt") );
-                            _data.setBfrPhotoTotalCnt ( jArray.getJSONArray(0).getJSONObject(i).getString("bfr_photo_total_cnt") );
-                            _data.setAftPhotoShotCnt  ( jArray.getJSONArray(0).getJSONObject(i).getString("aft_photo_shot_cnt") );
-                            _data.setAftPhotoTotalCnt ( jArray.getJSONArray(0).getJSONObject(i).getString("aft_photo_total_cnt") );
-                            _data.setType             ( jArray.getJSONArray(0).getJSONObject(i).getString("type") );
-                            _data.setLock             ( jArray.getJSONArray(0).getJSONObject(i).getString("lock") );
-                            dataList.add              ( _data );
+                        // TODO: 暫定対応  previousParentとcurrentParentを使って、階層移動を実現しよう
+                        if( jArray.get(0) instanceof JSONObject && jArray.getJSONObject(0).getString("currentParent") != JSONObject.NULL ) {
+                            Log.d(TAG, "暫定対応: currentParentみっけた");
+                            path = new ArrayList<String>();
+                            path.add( jArray.getJSONObject(0).getString("previousParent") );
+
+                        } else {
+                            // JSONArrayはforeach使えない
+                            for (int i = 0; i < jArray.getJSONArray(0).length(); i++) {
+                                TargetListData _data = new TargetListData();
+                                _data.setId(jArray.getJSONArray(0).getJSONObject(i).getString("_id"));
+                                _data.setParent(jArray.getJSONArray(0).getJSONObject(i).getString("parent"));
+                                if (i == 0) {
+                                    currentParentId = jArray.getJSONArray(0).getJSONObject(i).getString("parent");
+                                }
+                                _data.setTargetName(jArray.getJSONArray(0).getJSONObject(i).getString("target_name"));
+                                _data.setPhotoBeforeAfter(jArray.getJSONArray(0).getJSONObject(i).getString("photo_before_after"));
+                                _data.setPhotoCheck(jArray.getJSONArray(0).getJSONObject(i).getString("photo_check"));
+                                _data.setBfrPhotoShotCnt(jArray.getJSONArray(0).getJSONObject(i).getString("bfr_photo_shot_cnt"));
+                                _data.setBfrPhotoTotalCnt(jArray.getJSONArray(0).getJSONObject(i).getString("bfr_photo_total_cnt"));
+                                _data.setAftPhotoShotCnt(jArray.getJSONArray(0).getJSONObject(i).getString("aft_photo_shot_cnt"));
+                                _data.setAftPhotoTotalCnt(jArray.getJSONArray(0).getJSONObject(i).getString("aft_photo_total_cnt"));
+                                _data.setType(jArray.getJSONArray(0).getJSONObject(i).getString("type"));
+                                _data.setLock(jArray.getJSONArray(0).getJSONObject(i).getString("lock"));
+                                mDataList.add(_data);
+                            }
+                            path = new ArrayList<String>( Arrays.asList(jArray.getJSONArray(0).getJSONObject(0).getString("path").split("#")) );
+                        }
+                        if(mTargetListListener != null) {
+                            mTargetListListener.rcvTargetList();
                         }
                     } catch (Exception e) {
                         Log.d(TAG, e.toString());
                     }
-                    /*
-                    if( parentArray.size() > 1 && ( parentArray.get( parentArray.size() - 2 ).equals( currentParentId ) ) ) {
-                        parentArray.remove( parentArray.size() - 1 );
-                    } else {
-                        parentArray.add( currentParentId );
-                    }
-                    */
-                    TargetListAdapter targetListAdapter = new TargetListAdapter(_con, 0, dataList);
-                    ListView listView = (ListView) ((Activity)_con).findViewById(R.id.targetListView);
-                    listView.setAdapter( targetListAdapter );
-
 
 
                     break;
                 }
+                case SocketIOService.PHOTO_CONFIRM : {
+                    try {
+                        mEncPhotoData = jArray.getJSONObject(0).getString("encPhotoData");
+                        if(mPhotoConfirmListener != null) {
+                            mPhotoConfirmListener.rcvPhotoConfirm();
+                        }
+                    } catch (Exception e) {
+                        Log.d(TAG, e.toString());
+                    }
+                    break;
+                }
+                case SocketIOService.DISCONNECTED :{
+                    Log.d(TAG, "Socket.IO DisConnected...");
+                    if(mDisConnectedListener != null) {
+                        mDisConnectedListener.rcvDisConnected();
+                    }
+                    //Toast.makeText(MainActivity.this, "Socket.IO DisConnected", Toast.LENGTH_LONG).show();
+                    break;
+                }
             }
             /*
-            if( strList.get(0).equals("pjList")) {
-
-            } else if (strList.get(0).equals("tgtList")) {
-
-            } else if(strList.get(0).equals("tgtListUpdate")) {
-
-                final ArrayList<TargetListData> dataList = new ArrayList<TargetListData>();
-                String[] temp = rcvMessage.split(",");
-                for(int i = 1; i < temp.length; i += 11) {
-                    TargetListData _data = new TargetListData();
-                    _data.setId               ( temp[i] );
-                    _data.setParent           ( temp[i + 1] );
-                    if( i == 1 ) { currentParentId = temp[i + 1]; }
-                    _data.setTargetName       ( temp[i + 2] );
-                    _data.setPhotoBeforeAfter ( temp[i + 3] );
-                    _data.setPhotoCheck       ( temp[i + 4] );
-                    _data.setBfrPhotoShotCnt  ( temp[i + 5] );
-                    _data.setBfrPhotoTotalCnt ( temp[i + 6] );
-                    _data.setAftPhotoShotCnt  ( temp[i + 7] );
-                    _data.setAftPhotoTotalCnt ( temp[i + 8] );
-                    _data.setType             ( temp[i + 9] );
-                    _data.setLock             ( temp[i + 10]);
-                    dataList.add              ( _data );
-                }
-                if( parentArray.size() > 1 && ( parentArray.get( parentArray.size() - 2 ).equals( currentParentId ) ) ) {
-                    parentArray.remove( parentArray.size() - 1 );
-                } else {
-                    parentArray.add( currentParentId );
-                }
-                TargetListAdapter targetListAdapter = new TargetListAdapter(_con, 0, dataList);
-                ListView listView = (ListView) _vg.findViewById(R.id.targetListView);
-                listView.setAdapter( targetListAdapter );
-
-            } else if(strList.get(0).equals( "disConnect" )) {
-                Toast.makeText(_con, "WebSocket接続切断...", Toast.LENGTH_LONG).show();
-                Timer mTimer = null;
-                mTimer = new Timer(true);
-                mTimer.schedule( new TimerTask(){
-                    @Override
-                    public void run() {
-                        Log.d(TAG, "WebSocket接続チェック...");
-                        if( !client.isConnected() ) {
-                            Log.d(TAG, "WebSocket未接続のため、再接続を試みる");
-                            //client.connect();
-                        } else {
-                            Toast.makeText(_con, "WebSocket再接続完了", Toast.LENGTH_LONG).show();
-                            this.cancel();
-                        }
-
-                    }
-                }, 5000, 5000);
-            } else if(strList.get(0).equals( "Error")) {
-                Toast.makeText(_con, "WebSocket接続エラー...", Toast.LENGTH_LONG).show();
-            }
             //((MySample)context).textview01.setText("count: " + counter);
             */
         }
 
     }
 
+    public ArrayList<String> getPjNameList() {
+        return pjNameList;
+    }
+
+    public ArrayList<String> getPjRootTargetList() {
+        return pjRootTargetList;
+    }
+
+    public void setRootTargetId( String str ) { socketio.setRootTargetId( str ); }
+    public String getRootTargetId() { return socketio.getRootTargetId(); }
+
+    public void setProjectName( String str ) { socketio.setProjectName( str ); }
+    public String getProjectName() { return socketio.getProjectName(); }
+
+    public ArrayList<TargetListData> getTargetListData() {
+        return mDataList;
+    }
+
+    public void clearTargetListData() {
+        mDataList.clear();
+    }
+
+    public ArrayList<String> getTargetPath() {
+        return path;
+    }
+
+    public String getEncPhotoData() {
+        return mEncPhotoData;
+    }
+
+    public ArrayList<SendJobData> getSendJobs() { return socketio.getSendJobs(); }
+
+    /**
+     * リスナーを追加する
+     * @param listener
+     */
+    public void setRcvTargetListListener(IRcvTargetListListener listener){
+        this.mTargetListListener = listener;
+    }
+
+    public void setRcvProjectListListener(IRcvProjectListListener listener){
+        this.mProjectListListener = listener;
+    }
+
+    public void setRcvPhotoConfirmListener(IRcvPhotoConfirmListener listener){
+        this.mPhotoConfirmListener = listener;
+    }
+
+    public void setRcvDisConnectedListener(IRcvDisConnectedListener listener) {
+        this.mDisConnectedListener = listener;
+    }
+
+    /**
+     * リスナーを削除する
+     */
+    public void removeRcvTargetListListener() {
+        this.mTargetListListener = null;
+    }
+    public void removeRcvProjectListListener() {
+        this.mProjectListListener = null;
+    }
+    public void removeRcvPhotoConfirmListener() {
+        this.mPhotoConfirmListener = null;
+    }
+    public void removeRcvDisConnectedListener() { this.mDisConnectedListener = null; }
+
     public void setCurrentParentId(String str) {
         parentArray.add( str );
+    }
+
+    public void disConnected() {
+        socketio.disConnected();
     }
 
     public String getCurrentParentId() {

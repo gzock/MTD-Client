@@ -33,12 +33,6 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
             Log.d("CameraPreview", "PictureSize -> " + mCam.getParameters().getPictureSize().width + "x" + mCam.getParameters().getPictureSize().height);
             Log.d("CameraPreview", "PreviewSize -> " + mCam.getParameters().getPreviewSize().width + "x" + mCam.getParameters().getPreviewSize().height);
 
-            //TODO: 解像度選択画面は作らないとね
-            /*
-            parameters.setPictureSize(1920,1080);
-            parameters.setPreviewSize(1280,720);
-            mCam.setParameters(parameters);
-            */
             // カメラインスタンスに、画像表示先を設定
             mCam.setPreviewDisplay(holder);
             // プレビュー開始

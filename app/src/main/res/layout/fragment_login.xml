@@ -1,0 +1,106 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    tools:context="com.example.mtd_client.app.LoginFragment$PlaceholderFragment">
+
+    <FrameLayout
+        android:id="@+id/container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" >
+
+        <LinearLayout
+            android:orientation="vertical"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:layout_gravity="center"
+            android:weightSum="1">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="60dp"
+                android:textAppearance="?android:attr/textAppearanceLarge"
+                android:text="M T D - C l i e n t "
+                android:id="@+id/title"
+                android:layout_weight="0.15"
+                android:textSize="35dp"
+                android:gravity="center"
+                android:background="@drawable/border_blue"
+                android:textColor="#ffffffff" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:textAppearance="?android:attr/textAppearanceLarge"
+                android:text="工事長 ログイン"
+                android:id="@+id/textView3"
+                android:gravity="center"
+                android:background="@drawable/border_gray"
+                android:padding="8dp"
+                android:layout_marginTop="8dp"
+                android:textColor="#ffffffff" />
+
+            <LinearLayout
+                android:orientation="horizontal"
+                android:layout_width="fill_parent"
+                android:layout_height="53dp">
+
+                <EditText
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp
+                    "
+                    android:inputType="textPersonName"
+                    android:text="sasaki"
+                    android:ems="10"
+                    android:id="@+id/userIdTextBox"
+                    android:layout_weight="0.78"
+                    android:hint="ユーザID"
+                    android:layout_margin="8dp" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:orientation="horizontal"
+                android:layout_width="fill_parent"
+                android:layout_height="70dp">
+
+                <EditText
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:inputType="textPassword"
+                    android:ems="10"
+                    android:id="@+id/passTextBox"
+                    android:layout_weight="1"
+                    android:text="sasaki"
+                    android:hint="パスワード"
+                    android:padding="8dp"
+                    android:layout_margin="8dp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:orientation="horizontal"
+                android:layout_width="fill_parent"
+                android:layout_height="56dp">
+
+            </LinearLayout>
+
+            <Button
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="ログイン"
+                android:id="@+id/sendBtn"
+                android:layout_below="@+id/section_label"
+                android:layout_centerHorizontal="true"
+                android:background="@drawable/custom_button"
+                android:layout_margin="8dp"
+                android:textColor="#ffffffff" />
+
+        </LinearLayout>
+
+    </FrameLayout>
+
+</RelativeLayout>

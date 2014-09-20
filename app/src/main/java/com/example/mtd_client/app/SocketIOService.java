@@ -57,12 +57,16 @@ public class SocketIOService extends Service {
     private SocketIOClient socketio = null;
     private final IBinder mBinder = new SocketIOBinder();
     private SerializableJSONArray serialJArray = null;
-    Timer mTimer = null;
+    private Timer mTimer = null;
+    private Boolean waitingJobExistsFlag = false;
 
     ArrayList<SendJobData> jobManageArray = new ArrayList<SendJobData>();
     private String authId = null;
     private SSLContext sslContext = null;
     private TrustManagerFactory tmf = null;
+
+    private String mRootTargetId = null;
+    private String mProjectName = null;
 
     public SocketIOService() {
     }
@@ -88,12 +92,13 @@ public class SocketIOService extends Service {
                 if( socketio != null && socketio.isConnected() ) {
                     Log.d(TAG, "Socket.IO Connected. Start the send of the send waiting job");
                     if (0 < jobManageArray.size()) {
-                        Log.d(TAG, "Send Waiting Job Count -> " + jobManageArray.size());
+                        Log.d(TAG, "Send Job Count -> " + jobManageArray.size());
                         for (SendJobData item : jobManageArray) {
-                            if (socketio.isConnected()) {
-                               socketio.emit("addPhoto", item.getSendaDataJson());
+                            if (socketio.isConnected() && !item.getSendJobEnd()) {
+                               //socketio.emit("addPhoto", item.getSendaDataJson());
+
                             } else {
-                                Log.d(TAG, "Socket.IO Not Connected");
+                                Log.d(TAG, "Socket.IO Not Connected"); //これじゃ足りない
                                 break;
                             }
                         }
@@ -174,7 +179,6 @@ public class SocketIOService extends Service {
                     }
                     Log.d(TAG, "Socket.io Connected");
                     socketio = client;
-
 
                     client.setReconnectCallback(new ReconnectCallback() {
                         @Override
@@ -261,7 +265,10 @@ public class SocketIOService extends Service {
                                 Log.d(TAG, "addPhotoSuccess -> " + str);
                                 for( int i = 0; i < jobManageArray.size(); i++ ) {
                                     if( str.equals( jobManageArray.get(i).getTargetId() ) ) {
-                                        jobManageArray.remove(i);
+                                        // TODO:消すのではなく、成功フラグ立てて管理
+                                        jobManageArray.get(i).setSendJobEnd(true);
+                                        jobManageArray.get(i).setSendJobEndTime();
+                                        //jobManageArray.remove(i);
                                         Log.d(TAG, "JobRemove -> " + str);
                                     }
                                 }
@@ -298,17 +305,38 @@ public class SocketIOService extends Service {
         }
     }
 
-    public void addSendJob( SendJobData item ) {
-        jobManageArray.add( item );
+    public void addSendJob( SendJobData data ) {
+        jobManageArray.add( data );
         if( socketio.isConnected() ) {
-            if( jobManageArray.size() == 1 ) {
-               socketio.emit( "addPhoto", item.getSendaDataJson() );
+            for (SendJobData item : jobManageArray) {
+                if (!item.getSendJobEnd()) {
+                    return;
+                }
+            }
+            if( socketio.isConnected() ) {
+               socketio.emit( "addPhoto", data.getSendaDataJson() );
             }
         }
     }
 
+    public ArrayList<SendJobData> getSendJobs() {
+        return jobManageArray;
+    }
+
+
     public SocketIOClient getSocketIOClinet() {
         return socketio;
+    }
+
+    public void setRootTargetId( String str ) { mRootTargetId = str; }
+
+    public String getRootTargetId() { return mRootTargetId; }
+
+    public void setProjectName( String str ) { mProjectName = str; }
+    public String getProjectName() { return mProjectName; }
+
+    public void disConnected() {
+        socketio.disconnect();
     }
 
     // Binder内部クラス
@@ -335,5 +363,10 @@ public class SocketIOService extends Service {
     public boolean onUnbind(Intent intent) {
         //client.disconnect();
         return true;
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
     }
 }

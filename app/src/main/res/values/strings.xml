@@ -17,6 +17,7 @@
     <string name="title_ky">危険予知</string>
     <string name="title_task">タスク</string>
     <string name="title_chat">チャット</string>
+    <string name="title_send_job_data_result">送信ジョブ一覧</string>
 
     <string-array name="add_target_genre_items">
         <item>建物</item>
@@ -30,5 +31,9 @@
 
     <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="title_activity_photo_confirm">PhotoConfirm</string>
+    <string name="title_activity_send_job_data_result">SendJobDataResult</string>
+    <string name="title_activity_login">Login</string>
+    <string name="title_activity_target_list_fragment">TargetListFragment</string>
+    <string name="title_activity_send_job_data_result_fragment">SendJobDataResultFragment</string>
 
 </resources>
